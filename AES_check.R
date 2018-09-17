@@ -1,10 +1,10 @@
 library(readxl)
-path.ew <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Final Data from AES/"
+path.ew <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Final Data from AES/Final Data (second round) from AES.09.12.2018"
 
 # ------------------------------------
 # Tree Layer
 # ------------------------------------
-dat.tree <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Aug30.xlsx"), sheet = "Tree Layer")
+dat.tree <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Sept-10.xlsx"), sheet = "Tree Layer")
 names(dat.tree) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "DBH", "Canopy", "Decay", "Vigor", "Notes")
 dat.tree$Sampler <- as.factor(dat.tree$Sampler)
 dat.tree$PlotID <- as.factor(dat.tree$PlotID)
@@ -46,7 +46,7 @@ hist(as.numeric(dat.tree$DBH))
 # ------------------------------------
 # Shrub Layer
 # ------------------------------------
-dat.shrub <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Aug30.xlsx"), sheet = "Shrub Layer")
+dat.shrub <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Sept-10.xlsx"), sheet = "Shrub Layer")
 names(dat.shrub) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "Category", "Category.Sapling", "Count", "Notes")
 # dat.shrub <- data.frame(dat.shrub)
 dat.shrub$Sampler <- as.factor(dat.shrub$Sampler)
@@ -85,7 +85,7 @@ data.frame(dat.shrub[dat.shrub$Spp.Name=="Leitneria floridana",])
 # ------------------------------------
 # Downed Wood
 # ------------------------------------
-dat.cwd <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Aug30.xlsx"), sheet = "DW Layer")
+dat.cwd <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Sept-10.xlsx"), sheet = "DW Layer")
 dat.cwd <- dat.cwd[!is.na(dat.cwd$Date),]
 names(dat.cwd) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "DBH.1", "DBH.2", "Canopy", "Decay", "Length", "Notes")
 dat.cwd$Sampler <- as.factor(dat.cwd$Sampler)
@@ -95,9 +95,11 @@ dat.cwd$Spp.Name <- as.factor(dat.cwd$Spp.Name)
 dat.cwd$Canopy <- as.factor(dat.cwd$Canopy)
 dat.cwd$Decay <- as.factor(dat.cwd$Decay)
 # dat.cwd$Sample <- as.factor(dat.cwd$Sample)
-dat.cwd$DBH.1b <- as.numeric(dat.cwd$DBH.1)
+# dat.cwd$DBH.1b <- as.numeric(dat.cwd$DBH.1)
 
 summary(dat.cwd)
+
+dat.cwd[is.na(dat.cwd$Length),]
 
 # Messed up date
 nrow(dat.cwd[dat.cwd$Date>as.POSIXct("2018-09-01"),])
@@ -116,7 +118,7 @@ data.frame(dat.cwd[dat.cwd$Decay==0 & !is.na(dat.cwd$Decay),])
 # ------------------------------------
 # Soil Cover
 # ------------------------------------
-dat.cover <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Aug30.xlsx"), sheet = "Soil Cover")
+dat.cover <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Sept-10.xlsx"), sheet = "Soil Cover")
 dat.cover <- data.frame(dat.cover[,1:8])
 names(dat.cover) <- c("Date", "Sampler", "PlotID", "Moss", "Logs", "Rocks", "Bare", "notes")
 dat.cover$Sampler <- as.factor(dat.cover$Sampler)
@@ -144,7 +146,47 @@ dat.cover[is.na(dat.cover$Moss),]
 # ------------------------------------
 # Herb Layer -- Summer
 # ------------------------------------
-dat.herb2 <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Summer Herb Data Sheet_WOedits_Aug30.xlsx"), sheet = "Summer Herbaceous")
+dat.herb <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Sept-10.xlsx"), sheet = "Herbaceous")
+names(dat.herb) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "Cover", "Cover.Class", "Count.Woody", "Notes")
+# dat.herb <- data.frame(dat.herb)
+dat.herb$Sampler <- as.factor(dat.herb$Sampler)
+dat.herb$PlotID <- as.factor(dat.herb$PlotID)
+dat.herb$Spp.Code <- as.factor(dat.herb$Spp.Code)
+dat.herb$Spp.Name <- as.factor(dat.herb$Spp.Name)
+dat.herb$Notes <- as.factor(dat.herb$Notes)
+summary(dat.herb)
+
+
+summary(dat.herb$PlotID)
+# summary(dat.herb$Spp.Code)
+
+length(unique(dat.herb$Spp.Code))
+length(unique(dat.herb$Spp.Name))
+levels(dat.herb$Spp.Name)
+summary(dat.herb$Spp.Name)
+
+spp.code2 <- unique(dat.herb$Spp.Code)
+spp.code2 <- spp.code2[order(spp.code2)]
+
+spp.name2 <- unique(dat.herb$Spp.Name)
+spp.name2 <- spp.name2[order(spp.name2)]
+
+nrow(dat.herb[dat.herb$Cover==0,])
+dat.herb[dat.herb$Cover==0,]
+dat.herb[is.na(dat.herb$Cover),]
+
+dat.herb[is.na(dat.herb$Cover.Class),]
+dat.herb[dat.herb$Cover==0,]
+
+summary(dat.herb[!is.na(dat.herb$Count.Woody),])
+data.frame(dat.herb[!is.na(dat.herb$Count.Woody) & dat.herb$Count.Woody>10,])
+
+# ------------------------------------
+
+# ------------------------------------
+# Herb Layer -- Summer
+# ------------------------------------
+dat.herb2 <- read_excel(file.path(path.ew, "18-0073 Morton 2018 Summer Herb Data Sheet_WOedits_Sept-10.xlsx"), sheet = "Summer Herbaceous")
 names(dat.herb2) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "Cover", "Cover.Class", "Count.Woody", "Notes")
 # dat.herb2 <- data.frame(dat.herb2)
 dat.herb2$Sampler <- as.factor(dat.herb2$Sampler)
@@ -154,6 +196,9 @@ dat.herb2$Spp.Name <- as.factor(dat.herb2$Spp.Name)
 dat.herb2$Notes <- as.factor(dat.herb2$Notes)
 summary(dat.herb2)
 
+
+dat.herb2[dat.herb2$Cover==0,]
+dat.herb2[is.na(dat.herb2$Cover),]
 
 summary(dat.herb2$PlotID)
 # summary(dat.herb2$Spp.Code)

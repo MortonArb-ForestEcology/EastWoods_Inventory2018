@@ -16,13 +16,13 @@ library(readxl)
 # Looking at Tree Composition and Density: 2018 vs 2007
 # -----------------------------------------------------------
 path.ew <- "/Volumes/GoogleDrive/My Drive/East Woods"
-path.2018 <- file.path(path.ew, "Inventory 2018/Final Data from AES/")
+path.2018 <- file.path(path.ew, "Inventory 2018/Final Data from AES/Final Data (second round) from AES.09.12.2018")
 path.2007 <- file.path(path.ew, "Inventory 2007")
 # ----------------------------
 # Read in and format data
 # ----------------------------
 # 2018 Trees
-tree.2018 <- read_excel(file.path(path.2018, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Aug30.xlsx"), sheet = "Tree Layer")
+tree.2018 <- read_excel(file.path(path.2018, "18-0073 Morton 2018 Spring Veg Data_WO-edits_Sept-10.xlsx"), sheet = "Tree Layer")
 names(tree.2018) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "DBH", "Canopy", "Decay", "Vigor", "Notes")
 tree.2018$Sampler <- as.factor(tree.2018$Sampler)
 tree.2018$PlotID <- as.factor(tree.2018$PlotID)
@@ -88,10 +88,10 @@ tree.2018$Spp.Name <- sub("sp.", "spp", tree.2018$Spp.Name)
 
 tree.2007[tree.2007$Spp.Name=="rttf",]
 tree.2007[tree.2007$Spp.Name=="??",]
-tree.2007$Spp.Name <- car::recode(tree.2007$Spp.Name, "'rttf'='Acer spp'; '??'='ERROR'; 'Hickory spp'='Carya spp'; 'Fraxinus - Collections'='Fraxinus spp'; 'Unidentified spp'='Unidentified'; 'NONE'='No trees'; 'Cladrastis lutea'='Cladrastris kentukea'")
+tree.2007$Spp.Name <- car::recode(tree.2007$Spp.Name, "'rttf'='Acer spp'; '??'='ERROR'; 'Hickory spp'='Carya spp'; 'Fraxinus - Collections'='Fraxinus spp'; 'Unidentified spp'='Unidentified'; 'NONE'='No trees'; 'Cladrastis lutea'='Cladrastis kentukea'")
 tree.2018$Spp.Name <- car::recode(tree.2018$Spp.Name, "")
 
-tree.2018$Spp.Name <- car::recode(tree.2018$Spp.Name, "'Quercus alb'='Quercus alba'; 'tilia americana'='Tilia americana'; 'Cladastris kentukea'='Cladrastris kentukea'")
+tree.2018$Spp.Name <- car::recode(tree.2018$Spp.Name, "'Quercus alb'='Quercus alba'; 'tilia americana'='Tilia americana'; 'Cladastris kentukea'='Cladrastis kentukea'")
 
 # We have quite a bit of difference in tree IDs from year to year
 unique(tree.2018$Spp.Name)[!unique(tree.2018$Spp.Name) %in% unique(tree.2007$Spp.Name)]
