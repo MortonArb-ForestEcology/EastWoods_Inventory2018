@@ -1,0 +1,116 @@
+# Load and extract spatial data for the East Woods IMLS plots
+# Lots of stealing from the script that I used to locate my permanent plots: 
+#    EastWoods-MonitoringPlots/plot_selection/script/1_plot_selection.R
+
+# Libraries
+library(raster); library(rgdal); library(rgeos)
+library(lubridate)
+
+# File paths
+path.ew <- "~/Desktop/Research/EastWoods-MonitoringPlots/plot_selection/"
+google.gis <- "/Volumes/GoogleDrive/My Drive/East Woods/GIS_files"
+dir.terrain <- file.path(path.ew, "../EastWoods_GIS")
+path.gis <- "/Volumes/GIS/"
+
+# The raw IMLS
+imls.all <- readOGR(file.path(google.gis, "IMLS_posts/imlsposts.shp"))
+imls.all <- imls.all[coordinates(imls.all)[,1]>0,] # There's one weird plot that needs to be filtered out
+summary(imls.all)
+plot(imls.all)
+
+dem <- raster(file.path(google.gis, "DEMs/ewoods/")) # Elevation looks like its in feet
+imls.ll <- spTransform(imls.all, CRS("+proj=longlat"))
+imls.utm16 <- spTransform(imls.all, projection(dem))
+imls.df <- data.frame(x.nad83=coordinates(imls.all)[,1], y.nad83=coordinates(imls.all)[,2],
+                      x.utm16=coordinates(imls.utm16)[,1], y.utm16=coordinates(imls.utm16)[,2],
+                      lon=coordinates(imls.ll)[,1], lat=coordinates(imls.ll)[,2],
+                      PlotID=imls.all$CORNER, point.ID=1:nrow(imls.all))
+summary(imls.df)
+
+
+# Topography
+dem <- raster(file.path(google.gis, "DEMs/ewoods/")) # Elevation looks like its in feet
+# pre-calculated additional terrain variables
+slope <- raster(file.path(google.gis, "topography_CR/eastwoods_slope"))
+aspect <- raster(file.path(google.gis, "topography_CR/eastwoods_aspect"))
+tpi <- raster(file.path(google.gis, "topography_CR/eastwoods_tpi"))
+
+
+imls.df$elev   <- extract(dem   , spTransform(imls.all, projection(dem)))
+imls.df$slope  <- extract(slope , spTransform(imls.all, projection(dem)))
+imls.df$aspect <- extract(aspect, spTransform(imls.all, projection(dem)))
+imls.df$tpi    <- extract(tpi   , spTransform(imls.all, projection(dem)))
+summary(imls.df)
+
+
+
+# # Soils 
+soil_type <- readOGR("/Volumes/GIS/Collections/soils/soil_types.shp")
+plot(soil_type)
+summary(soil_type)
+
+imls.soils <- extract(soil_type, imls.all)
+imls.soils <- merge(imls.soils, imls.df[,c("point.ID", "PlotID")])
+summary(imls.soils)
+dim(imls.soils)
+
+
+# 
+# # Existing SSURGO data; can try using FEDDATA to get better
+# ssurgo <- readOGR("/Volumes/GIS/Collections/soils/SSURGO_region.shp")
+# summary(ssurgo)
+
+# soils <- FedData::get_ssurgo(imls.all, label="IMLS_Points", extraction.dir="SSURGO_IMLS")
+# summary(soils$spatial)
+# text.key <- read.csv("SSURGO_IMLS/IMLS_Points_SSURGO_chtexturegrp.csv")
+# summary(text.key)
+# 
+# test <- read.csv("SSURGO_IMLS/IMLS_Points_SSURGO_muaggatt.csv")
+# summary(test)
+
+# Woodland boundarys
+woods <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/2008 vegetative cover type/Woodland.shp")
+# woods <- woods[2,] # We only want to worry about the main block; row 1 = King's Grove, row 2= main tract; row 3 = weird 
+imls.df$wooded <- over(imls.all, woods)[,1]
+imls.df$wooded <- as.factor(car::recode(imls.df$ewoods, "'0'='yes'"))
+summary(imls.df)
+
+
+# Getting Management Info
+mgmt  <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Boundaries/New Management Units.shp")
+harvest <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Canopy Thinning/Canopy Thinning.shp")
+burn <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Burn/Burned_Area.shp")
+summary(harvest)
+
+imls.mgmt <- extract(mgmt, imls.all)
+imls.mgmt$point.ID <- as.factor(imls.mgmt$point.ID)
+summary(imls.mgmt)
+
+imls.df$AreaName <- car::recode(imls.mgmt$East_West, "'East Side'='East Woods'; 'Hidden Lake Forest Preser'='Hidden Lake'")
+imls.df$AreaName2 <- imls.mgmt$CommonName
+imls.df$MgmtUnit <- imls.mgmt$UnitNumber
+imls.df$MgmtUnitArea <- imls.mgmt$Acres
+imls.df$ComClass <- imls.mgmt$ComClass
+summary(imls.df)
+
+# imls.harvest <- over(imls.all, harvest)
+imls.harvest <- over(imls.all, harvest)
+summary(imls.harvest)
+dim(imls.harvest)
+
+imls.df$CanopyHarvest <- imls.harvest$Year
+
+imls.burn <- extract(burn, imls.all)
+imls.burn <- merge(imls.burn, imls.df[,c("point.ID", "PlotID")])
+summary(imls.burn)
+
+
+dim(imls.burn)
+
+
+# Save all the info except the burn history
+path.out <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson"
+write.csv(imls.df, file.path(path.out, "point_info_GIS.csv"), row.names=F)
+write.csv(imls.burn, file.path(path.out, "point_info_GIS_burnhistory_2017-12.csv"), row.names=F)
+write.csv(imls.harvest, file.path(path.out, "point_info_GIS_canopyharvest.csv"), row.names=F)
+write.csv(imls.soils, file.path(path.out, "point_info_GIS_soils.csv"), row.names=F)
