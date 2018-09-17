@@ -10,7 +10,7 @@
 # For example, based on these two sets of data (2007 & 2018) we have seen something decline (e.g., oak basal area) and another thing (e.g., oak recruitment) remain unchanged.  Based on this information, we propose the following management action items to commence in the near future.  We may need to look at management units to help break down the data. We will also need to look at the impact of volunteers on the East Woods, specifically since the funding was provided to enhance our volunteer stewardship effort. 
 
 
-library(readxl)
+library(readxl); library(ggplot2)
 
 # -----------------------------------------------------------
 # Looking at Tree Composition and Density: 2018 vs 2007
@@ -125,11 +125,114 @@ summary(dat.tree.all)
 
 dat.tree.plot <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=sum)
 names(dat.tree.plot)[which(names(dat.tree.plot)=="x")] <- c("BA.tot")
+dat.tree.plot$density <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=length)[,"x"]
+dat.tree.plot$DBH.mean <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=mean)[,"x"]
+dat.tree.plot$DBH.sd <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=sd)[,"x"]
 summary(dat.tree.plot)
 
 # Come up with an additional data frame looking at changes by genus between 2007 & 2008
 
 # Load in Spatial File so we can look at patterns & changes as a map
+imls.spat <- read.csv(file.path(path.ew, "Inventory 2018/Analyses_Rollinson/point_info_GIS.csv"))
+imls.spat$PlotID2 <- imls.spat$PlotID
+imls.spat$PlotID <- gsub("-", "", imls.spat$PlotID)
+summary(imls.spat); head(imls.spat)
+
+dat.tree.plot <- merge(dat.tree.plot, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded")], all.x=T)
+summary(dat.tree.plot)
+
+dat.tree.plot[,c("IV.BA", "IV.dens", "IV.mean", "BA.diff", "density.diff")] <- NA
+# Calculating relative importance value
+pb <- txtProgressBar(min=0, max=length(unique(dat.tree.plot$PlotID)), style = 3)
+pb.ind=0
+for(PLT in unique(dat.tree.plot$PlotID)){
+  plt.live.ind <- which(dat.tree.plot$PlotID==PLT & dat.tree.plot$Status=="live")
+  dat.plt <- dat.tree.plot[plt.live.ind,]
+  
+  BA.2018.tot <- sum(dat.plt[dat.plt$Year==2018, "BA.tot"], na.rm=T)
+  BA.2007.tot <- sum(dat.plt[dat.plt$Year==2007, "BA.tot"], na.rm=T)
+  dens.2018.tot <- sum(dat.plt[dat.plt$Year==2018, "density"], na.rm=T)
+  dens.2007.tot <- sum(dat.plt[dat.plt$Year==2007, "density"], na.rm=T)
+  
+  for(TAX in unique(dat.plt$Genus)){
+    if(nrow(dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2007, ])>0){
+      ba.2007 <- dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2007, "BA.tot"]
+      dens.2007 <- dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2007, "density"]
+      
+      dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2007, "IV.BA"] <- ba.2007/BA.2007.tot
+      dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2007, "IV.dens"] <- dens.2007/dens.2007.tot
+    } else {
+      ba.2007 <- 0
+      dens.2007 <- 0
+    }
+    
+    if(nrow(dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, ])>0){
+      ba.2018 <- dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, "BA.tot"]
+      dens.2018 <- dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, "density"]
+      
+      dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, "IV.BA"] <- ba.2018/BA.2018.tot
+      dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, "IV.dens"] <- dens.2018/dens.2018.tot
+    } else {
+      ba.2018 <- 0
+      dens.2018 <- 0
+      
+      dat.tmp <- dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2007, ]
+      dat.tmp$Year <- 2018
+      dat.tmp[,c("BA.tot", "density", "DBH.mean", "DBH.sd")] <- NA
+      
+      warning(paste0("Lost Genera: ", TAX, " in plot ", PLT))
+    }
+
+    dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, "BA.diff"] <- ba.2018 - ba.2007
+    dat.plt[dat.plt$Genus==TAX & dat.plt$Year==2018, "density.diff"] <- dens.2018 - dens.2007
+    
+  } # End Taxa loop
+  
+  dat.tree.plot[plt.live.ind,] <- dat.plt
+  
+  pb.ind=pb.ind+1
+  setTxtProgressBar(pb, pb.ind)
+} # End plot loop
+dat.tree.plot$IV.mean <- apply(dat.tree.plot[,c("IV.BA", "IV.dens")], 1, mean)
+summary(dat.tree.plot)
+
+summary(dat.tree.plot[dat.tree.plot$Genus=="Quercus" & dat.tree.plot$Status=="live",])
+head(dat.tree.plot[dat.tree.plot$Genus=="Quercus" & dat.tree.plot$Status=="live",])
+
+
+ggplot(data=dat.tree.plot[dat.tree.plot$Year==2018 & dat.tree.plot$Status=="live" & dat.tree.plot$Genus=="Quercus",]) +
+  ggtitle("Change in IV") +
+  facet_wrap(~Genus) +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=BA.diff, size=BA.tot)) +
+  scale_color_gradient2(low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.background=element_rect("gray50"),
+        panel.grid=element_blank())
+
+ggplot(data=dat.tree.plot[dat.tree.plot$Year==2018 & dat.tree.plot$Status=="live" & dat.tree.plot$Genus=="Quercus",]) +
+  ggtitle("Change in Oak Basal Area: 2018 - 2007") +
+  facet_wrap(~Genus) +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=BA.diff, size=BA.tot)) +
+  scale_color_gradient2(low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.background=element_rect("gray50"),
+        panel.grid=element_blank())
+
+ggplot(data=dat.tree.plot[dat.tree.plot$Year==2018 & dat.tree.plot$Status=="live" & dat.tree.plot$Genus=="Quercus",]) +
+  ggtitle("Change in Oak Density: 2018 - 2007") +
+  facet_wrap(~Genus) +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=density.diff, size=density)) +
+  scale_color_gradient2(low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.background=element_rect("gray50"),
+        panel.grid=element_blank())
+
+
+# Aggregating to get the whole-plot view
+
 # ----------------------------
 
 
