@@ -12,12 +12,32 @@
 
 library(readxl); library(ggplot2)
 
+# Load some handy spatial maps
+library(sp); library(rgdal); library(raster)
+woods <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/2008 vegetative cover type/Woodland.shp")
+roads <- readOGR("/Volumes/GIS/Collections/Transportation/roads_parking/circ_veh_rd_2011-2020_ctrln.shp")
+paths <- readOGR("/Volumes/GIS/Collections/Transportation/trails_paths/paths.shp")
+parking <- readOGR("/Volumes/GIS/Collections/Transportation/roads_parking/parking_lots.shp")
+
+woods.fort <- fortify(woods)
+summary(woods.fort)
 # -----------------------------------------------------------
 # Looking at Tree Composition and Density: 2018 vs 2007
 # -----------------------------------------------------------
 path.ew <- "/Volumes/GoogleDrive/My Drive/East Woods"
 path.2018 <- file.path(path.ew, "Inventory 2018/Final Data from AES/Final Data (second round) from AES.09.12.2018")
 path.2007 <- file.path(path.ew, "Inventory 2007")
+path.out <- file.path(path.ew, "Inventory 2018/Analyses_Rollinson")
+google.gis <- "/Volumes/GoogleDrive/My Drive/East Woods/GIS_files"
+morton.gis <- "/Volumes/GIS/Collections" # Note: could soft-code this in, but repeating it everywhere is making it easier to search
+
+# Load in Spatial File so we can look at patterns & changes as a map
+imls.spat <- read.csv(file.path(path.ew, "Inventory 2018/Analyses_Rollinson/point_info_GIS.csv"))
+imls.spat$PlotID2 <- imls.spat$PlotID
+imls.spat$PlotID <- gsub("-", "", imls.spat$PlotID)
+summary(imls.spat); head(imls.spat)
+
+
 # ----------------------------
 # Read in and format data
 # ----------------------------
@@ -123,31 +143,264 @@ dat.tree.all$Genus <- as.factor(unlist(lapply(stringr::str_split(dat.tree.all$Sp
 dat.tree.all$BA <- pi*(dat.tree.all$DBH/2)^2 # in cm2
 summary(dat.tree.all)
 
-dat.tree.plot <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=sum)
-names(dat.tree.plot)[which(names(dat.tree.plot)=="x")] <- c("BA.tot")
-dat.tree.plot$density <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=length)[,"x"]
-dat.tree.plot$DBH.mean <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=mean)[,"x"]
-dat.tree.plot$DBH.sd <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=sd)[,"x"]
-summary(dat.tree.plot)
+# -------
+# Doing some full-plot summaries
+# -------
+dat.plot <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Status")], FUN=sum, na.rm=F)
+names(dat.plot)[which(names(dat.plot)=="x")] <- c("BA.tot")
+dat.plot$density <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Status")], FUN=length)[,"x"]
+dat.plot$DBH.mean <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Status")], FUN=mean)[,"x"]
+dat.plot$DBH.sd <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Status")], FUN=sd)[,"x"]
+summary(dat.plot)
+
+# Add back in our plots without any trees
+# dat.plot <- merge(dat.plot, dat.tree.all[is.na(dat.tree.all$Status), c("Year", "PlotID", "Status")], all=T)
+# summary(dat.plot)
+
+dat.plot <- merge(dat.plot, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded", "AreaName")], all.x=T)
+summary(dat.plot)
+
+pb <- txtProgressBar(min=0, max=length(unique(dat.plot$PlotID)), style = 3)
+pb.ind=0
+for(PLT in unique(dat.plot$PlotID)){
+  pb.ind=pb.ind+1
+  setTxtProgressBar(pb, pb.ind)
+  if(all(is.na(dat.plot[dat.plot$PlotID==PLT, "Status"]))) next
+  for(STAT in c("live", "dead")){
+    ind.2007 <- which(dat.plot$PlotID==PLT & dat.plot$Year==2007 & dat.plot$Status==STAT)
+    ind.2018 <- which(dat.plot$PlotID==PLT & dat.plot$Year==2018 & dat.plot$Status==STAT)
+    
+    dat.plot[ind.2018, "BA.diff"] <- max(0, dat.plot[ind.2018, "BA.tot"]) - max(0,dat.plot[ind.2007, "BA.tot"])
+    dat.plot[ind.2018, "dens.diff"] <- max(0, dat.plot[ind.2018, "density"]) - max(0,dat.plot[ind.2007, "density"])
+    
+    if(STAT!="live") next # If we're not working with live stuff, we can't calculate the dominant taxa
+    
+    dat.tmp <- dat.tree.all[dat.tree.all$PlotID==PLT & dat.tree.all$Status==STAT,]
+    if(nrow(dat.tmp)<1) next
+    if(all(is.na(dat.tmp$PlotID))) next
+    
+    dat.plot[ind.2007,"Spp.Rich"] <- length(unique(dat.tmp[dat.tmp$Year==2007, "Spp.Name"]))
+    dat.plot[ind.2018,"Spp.Rich"] <- length(unique(dat.tmp[dat.tmp$Year==2018, "Spp.Name"]))
+    dat.plot[ind.2018, "Rich.diff"] <- max(0,dat.plot[ind.2018, "Spp.Rich"]) - max(0, dat.plot[ind.2007, "Spp.Rich"])
+    
+    # Finding dominant species
+    dat.tmp2 <- aggregate(dat.tmp$BA, by=dat.tmp[,c("Year", "Spp.Name")], FUN=sum)
+    names(dat.tmp2)[which(names(dat.tmp2)=="x")] <- "BA"
+    dat.tmp2$dens <- aggregate(dat.tmp$BA, by=dat.tmp[,c("Year", "Spp.Name")], FUN=length)[,"x"]
+    
+    dat.tmp2[dat.tmp2$Year==2007, "IV.BA"] <- dat.tmp2[dat.tmp2$Year==2007, "BA"]/sum(dat.tmp2[dat.tmp2$Year==2007, "BA"])
+    dat.tmp2[dat.tmp2$Year==2007, "IV.dens"] <- dat.tmp2[dat.tmp2$Year==2007, "dens"]/sum(dat.tmp2[dat.tmp2$Year==2007, "dens"])
+    dat.tmp2[dat.tmp2$Year==2018, "IV.BA"] <- dat.tmp2[dat.tmp2$Year==2018, "BA"]/sum(dat.tmp2[dat.tmp2$Year==2018, "BA"])
+    dat.tmp2[dat.tmp2$Year==2018, "IV.dens"] <- dat.tmp2[dat.tmp2$Year==2018, "dens"]/sum(dat.tmp2[dat.tmp2$Year==2018, "dens"])
+    
+    dat.tmp2$IV.mean <- apply(dat.tmp2[,c("IV.BA", "IV.dens")], 1, mean)
+    
+    if(nrow(dat.tmp2[dat.tmp2$Year==2007,])>0){
+      dat.plot[ind.2007,"Spp.Dom"] <- dat.tmp2[dat.tmp2$Year==2007 & dat.tmp2$IV.mean==max(dat.tmp2$IV.mean[which(dat.tmp2$Year==2007)]),"Spp.Name"]
+    }
+    if(nrow(dat.tmp2[dat.tmp2$Year==2018,])>0){
+      dat.plot[ind.2018,"Spp.Dom"] <- dat.tmp2[dat.tmp2$Year==2018 & dat.tmp2$IV.mean==max(dat.tmp2$IV.mean[which(dat.tmp2$Year==2018)]),"Spp.Name"]
+    }
+    
+    if(nrow(dat.plot[c(ind.2007,ind.2018),])<2) {
+      dat.plot[ind.2018, "Spp.Change"] <- "CHANGE"
+    } else {
+      dat.plot[ind.2018, "Spp.Change"] <- ifelse(dat.plot[ind.2018,"Spp.Dom"]!=dat.plot[ind.2007,"Spp.Dom"], "CHANGE", "NO")
+    }
+  } # End Status loop
+
+  
+} # End plot loop
+
+
+dat.plot$Genus <- as.factor(unlist(lapply(stringr::str_split(dat.plot$Spp.Dom, " "), function(x) x[1])))
+dat.plot$oak.dom <- ifelse(dat.plot$Genus=="Quercus", dat.plot$Spp.Dom, "Other")
+summary(dat.plot)
+
+summary(droplevels(dat.plot[dat.plot$Year==2007,"Spp.Dom"]))
+
+png(file.path(path.out, "figures", "BasalArea_Density_TotLive.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Status=="live",]) +
+  ggtitle("Total Live Basal Area & Stem Density") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  facet_wrap(~Year) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=BA.tot, size=density)) +
+  scale_color_gradient2(name="Basal Area", low="white", high="blue3", mid="white") +
+  scale_size_continuous(name="Stem\nDensity") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        strip.text = element_text(size=rel(2))) +
+  theme(legend.position = "bottom")
+dev.off()
+
+png(file.path(path.out, "figures", "SpeciesRichness_TotLive.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Status=="live",]) +
+  ggtitle("Species Richness") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  facet_wrap(~Year) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=Spp.Rich, size=BA.tot)) +
+  scale_color_gradient2(name="# Species", low="white", high="orange3", mid="white") +
+  scale_size_continuous(name="Basal\nArea") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        strip.text = element_text(size=rel(2))) +
+  theme(legend.position = "bottom")
+dev.off()
+
+png(file.path(path.out, "figures", "SpeciesDominant_TotLive.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Status=="live",]) +
+  ggtitle("Dominant Species") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  facet_wrap(~Year) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=Spp.Dom, size=BA.tot)) +
+  scale_color_discrete(name="Dominant\nSpecies") +
+  # scale_color_gradient2(name="# Species", low="white", high="orange3", mid="white") +
+  scale_size_continuous(name="Basal\nArea") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        strip.text = element_text(size=rel(2))) +
+  theme(legend.position = "bottom")
+dev.off()
+
+png(file.path(path.out, "figures", "Change_SpeciesDominant_TotLive.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Status=="live" & dat.plot$Year==2018,]) +
+  ggtitle("Sites with Change in Dominant Species") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  # facet_wrap(~Year) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=Spp.Change, size=BA.tot)) +
+  scale_color_manual(name="Dominant\nSpecies", values=c("orange2", "gray30")) +
+  # scale_color_gradient2(name="# Species", low="white", high="orange3", mid="white") +
+  scale_size_continuous(name="Basal\nArea") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        strip.text = element_text(size=rel(2))) +
+  theme(legend.position = "bottom")
+dev.off()
+
+png(file.path(path.out, "figures", "SpeciesDominant_TotLive_Genus.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Status=="live",]) +
+  ggtitle("Dominant Genus") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  facet_wrap(~Year) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=Genus, size=BA.tot)) +
+  scale_color_discrete(name="Dominant\nGenus") +
+  # scale_color_gradient2(name="# Species", low="white", high="orange3", mid="white") +
+  scale_size_continuous(name="Basal\nArea") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        strip.text = element_text(size=rel(2))) +
+  theme(legend.position = "bottom")
+dev.off()
+
+png(file.path(path.out, "figures", "Change_BasalArea_TotLive.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Year==2018 & dat.plot$Status=="live",]) +
+  ggtitle("Change in Basal Area 2007-2018") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  # facet_wrap(~Status) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=BA.diff, size=BA.tot)) +
+  scale_color_gradient2(name="Basal Area\nChange", low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
+  scale_size_continuous(name="Basal Area\n2018") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+dev.off()
+
+png(file.path(path.out, "figures", "Change_Density_TotLive.png"), height=8, width=10, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Year==2018 & dat.plot$Status=="live",]) +
+  ggtitle("Change in Tree Density 2007-2018") +
+  coord_equal(xlim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(dat.plot[dat.plot$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
+  # facet_wrap(~Status) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
+  geom_point(aes(x=x.nad83, y=y.nad83, color=dens.diff, size=density)) +
+  scale_color_gradient2(name="Density\nChange", low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
+  scale_size_continuous(name="Density\n2018") +
+  theme_bw() +
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+dev.off()
+# -------
+
+# -------
+# Looking at Genus-level changes
+# -------
+plot.genus <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=sum)
+names(plot.genus)[which(names(plot.genus)=="x")] <- c("BA.tot")
+plot.genus$density <- aggregate(dat.tree.all$BA, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=length)[,"x"]
+plot.genus$DBH.mean <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=mean)[,"x"]
+plot.genus$DBH.sd <- aggregate(dat.tree.all$DBH, by=dat.tree.all[,c("Year", "PlotID", "Genus", "Status")], FUN=sd)[,"x"]
+summary(plot.genus)
 
 # Come up with an additional data frame looking at changes by genus between 2007 & 2008
+plot.genus <- merge(plot.genus, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded", "AreaName")], all.x=T)
+summary(plot.genus)
 
-# Load in Spatial File so we can look at patterns & changes as a map
-imls.spat <- read.csv(file.path(path.ew, "Inventory 2018/Analyses_Rollinson/point_info_GIS.csv"))
-imls.spat$PlotID2 <- imls.spat$PlotID
-imls.spat$PlotID <- gsub("-", "", imls.spat$PlotID)
-summary(imls.spat); head(imls.spat)
-
-dat.tree.plot <- merge(dat.tree.plot, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded")], all.x=T)
-summary(dat.tree.plot)
-
-dat.tree.plot[,c("IV.BA", "IV.dens", "IV.mean", "BA.diff", "density.diff")] <- NA
+plot.genus[,c("IV.BA", "IV.dens", "IV.mean", "BA.diff", "density.diff")] <- NA
 # Calculating relative importance value
-pb <- txtProgressBar(min=0, max=length(unique(dat.tree.plot$PlotID)), style = 3)
+pb <- txtProgressBar(min=0, max=length(unique(plot.genus$PlotID)), style = 3)
 pb.ind=0
-for(PLT in unique(dat.tree.plot$PlotID)){
-  plt.live.ind <- which(dat.tree.plot$PlotID==PLT & dat.tree.plot$Status=="live")
-  dat.plt <- dat.tree.plot[plt.live.ind,]
+for(PLT in unique(plot.genus$PlotID)){
+  plt.live.ind <- which(plot.genus$PlotID==PLT & plot.genus$Status=="live")
+  dat.plt <- plot.genus[plt.live.ind,]
   
   BA.2018.tot <- sum(dat.plt[dat.plt$Year==2018, "BA.tot"], na.rm=T)
   BA.2007.tot <- sum(dat.plt[dat.plt$Year==2007, "BA.tot"], na.rm=T)
@@ -188,50 +441,41 @@ for(PLT in unique(dat.tree.plot$PlotID)){
     
   } # End Taxa loop
   
-  dat.tree.plot[plt.live.ind,] <- dat.plt
+  plot.genus[plt.live.ind,] <- dat.plt
   
   pb.ind=pb.ind+1
   setTxtProgressBar(pb, pb.ind)
 } # End plot loop
-dat.tree.plot$IV.mean <- apply(dat.tree.plot[,c("IV.BA", "IV.dens")], 1, mean)
-summary(dat.tree.plot)
+plot.genus$IV.mean <- apply(plot.genus[,c("IV.BA", "IV.dens")], 1, mean)
+summary(plot.genus)
 
-summary(dat.tree.plot[dat.tree.plot$Genus=="Quercus" & dat.tree.plot$Status=="live",])
-head(dat.tree.plot[dat.tree.plot$Genus=="Quercus" & dat.tree.plot$Status=="live",])
+summary(plot.genus[plot.genus$Genus=="Quercus" & plot.genus$Status=="live",])
+head(plot.genus[plot.genus$Genus=="Quercus" & plot.genus$Status=="live",])
 
 
-ggplot(data=dat.tree.plot[dat.tree.plot$Year==2018 & dat.tree.plot$Status=="live" & dat.tree.plot$Genus=="Quercus",]) +
-  ggtitle("Change in IV") +
-  facet_wrap(~Genus) +
+
+png(file.path(path.out, "figures", "Change_BasalArea_Quercus.png"), height=8, width=10, units="in", res=180)
+ggplot(data=plot.genus[plot.genus$Year==2018 & plot.genus$Status=="live"  & plot.genus$Genus=="Quercus",]) +
+  ggtitle("Change in Basal Area 2007-2018: Quercus") +
+  # facet_wrap(~Genus) +
+  geom_polygon(data=woods.fort[woods.fort$hole==F,], aes(x=long, y=lat, group=group), fill="green4", alpha=0.33) +
+  geom_polygon(data=woods.fort[woods.fort$hole==T,], aes(x=long, y=lat, group=group), fill="gray60", alpha=1) +
+  geom_path(data=roads[roads$name=="main route east side",], aes(x=long, y=lat, group=group), size=2, color="black") +
+  geom_path(data=paths, aes(x=long, y=lat, group=group), size=1, color="brown", linetype="dashed") +
+  geom_point(data=imls.spat, aes(x=x.nad83, y=y.nad83), size=1, color="black") +
   geom_point(aes(x=x.nad83, y=y.nad83, color=BA.diff, size=BA.tot)) +
-  scale_color_gradient2(low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
-  coord_equal() +
+  scale_color_gradient2(name="Basal Area\nChange", low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
+  scale_size_continuous(name="Basal Area\n2018") +
+  coord_equal(xlim=range(plot.genus[plot.genus$AreaName!="Hidden Lake","x.nad83"], na.rm=T), ylim=range(plot.genus[plot.genus$AreaName!="Hidden Lake","y.nad83"], na.rm=T)) +
   theme_bw() +
-  theme(panel.background=element_rect("gray50"),
-        panel.grid=element_blank())
+  theme(panel.background=element_rect("gray60"),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+dev.off()
+# -------
 
-ggplot(data=dat.tree.plot[dat.tree.plot$Year==2018 & dat.tree.plot$Status=="live" & dat.tree.plot$Genus=="Quercus",]) +
-  ggtitle("Change in Oak Basal Area: 2018 - 2007") +
-  facet_wrap(~Genus) +
-  geom_point(aes(x=x.nad83, y=y.nad83, color=BA.diff, size=BA.tot)) +
-  scale_color_gradient2(low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
-  coord_equal() +
-  theme_bw() +
-  theme(panel.background=element_rect("gray50"),
-        panel.grid=element_blank())
-
-ggplot(data=dat.tree.plot[dat.tree.plot$Year==2018 & dat.tree.plot$Status=="live" & dat.tree.plot$Genus=="Quercus",]) +
-  ggtitle("Change in Oak Density: 2018 - 2007") +
-  facet_wrap(~Genus) +
-  geom_point(aes(x=x.nad83, y=y.nad83, color=density.diff, size=density)) +
-  scale_color_gradient2(low="#d8b365", high="#5ab4ac", mid="white", midpoint=0) +
-  coord_equal() +
-  theme_bw() +
-  theme(panel.background=element_rect("gray50"),
-        panel.grid=element_blank())
-
-
-# Aggregating to get the whole-plot view
 
 # ----------------------------
 

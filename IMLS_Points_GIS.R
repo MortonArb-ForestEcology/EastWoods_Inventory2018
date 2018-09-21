@@ -109,7 +109,7 @@ dim(imls.burn)
 
 
 # Save all the info except the burn history
-path.out <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson"
+path.out <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson/data_processed"
 write.csv(imls.df, file.path(path.out, "point_info_GIS.csv"), row.names=F)
 write.csv(imls.burn, file.path(path.out, "point_info_GIS_burnhistory_2017-12.csv"), row.names=F)
 write.csv(imls.harvest, file.path(path.out, "point_info_GIS_canopyharvest.csv"), row.names=F)
