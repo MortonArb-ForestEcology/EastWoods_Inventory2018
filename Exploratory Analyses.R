@@ -32,10 +32,11 @@ google.gis <- "/Volumes/GoogleDrive/My Drive/East Woods/GIS_files"
 morton.gis <- "/Volumes/GIS/Collections" # Note: could soft-code this in, but repeating it everywhere is making it easier to search
 
 # Load in Spatial File so we can look at patterns & changes as a map
-imls.spat <- read.csv(file.path(path.ew, "Inventory 2018/Analyses_Rollinson/point_info_GIS.csv"))
+imls.spat <- read.csv(file.path(path.ew, "Inventory 2018/Analyses_Rollinson/data_processed/point_info_GIS.csv"))
 imls.spat$PlotID2 <- imls.spat$PlotID
 imls.spat$PlotID <- gsub("-", "", imls.spat$PlotID)
 summary(imls.spat); head(imls.spat)
+
 
 
 # ----------------------------
