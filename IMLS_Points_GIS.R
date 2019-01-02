@@ -77,14 +77,80 @@ summary(imls.df)
 
 
 # Getting Management Info
-mgmt  <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Boundaries/New Management Units.shp")
-harvest <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Canopy Thinning/Canopy Thinning.shp")
-burn <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Burn/Burned_Area.shp")
-summary(harvest)
+path.burn <- "/Volumes/GIS/Collections/Natural Resources Management/Burn/Controlled Burn Areas Draft.gdb"
 
-imls.mgmt <- extract(mgmt, imls.all)
-imls.mgmt$point.ID <- as.factor(imls.mgmt$point.ID)
-summary(imls.mgmt)
+burn <- readOGR(path.burn, "Burned_Area_Master")
+burn$Burn_Date2 <- as.Date(burn$Burn_Date)
+burn$Year <- lubridate::year(burn$Burn_Date2)
+burn[grep("2013", burn$NOTES),"Year"] <- 2013
+burn[grep("Pizzo", burn$NOTES),"Year"] <- 2008
+burn <- spTransform(burn, projection(imls.all))
+summary(burn)
+dim(burn)
+
+data.frame(burn[burn$Year==2013 & !is.na(burn$Year) & is.na(burn$Burn_Date),])
+plot(burn[burn$Year==2013 & !is.na(burn$Year) & is.na(burn$Burn_Date),])
+
+imls.burn <- extract(burn[!is.na(burn$Year),], imls.all)
+imls.burn <- merge(imls.burn, imls.df[,c("point.ID", "PlotID", "lon", "lat")])
+summary(imls.burn[is.na(imls.burn$Year),])
+summary(imls.burn[imls.burn$Year==2013 & !is.na(imls.burn$Year),])
+summary(imls.burn)
+
+library(ggplot2)
+burn.df2 <- aggregate(imls.burn[!is.na(imls.burn$Burn_Date2),c("Burn_Date2")], by=imls.burn[!is.na(imls.burn$Burn_Date2),c("PlotID", "lat", "lon", "Burn_Date2", "Year")], FUN=length)
+names(burn.df2)[which(names(burn.df2)=="x")] <- "n.entry"
+burn.df2$Acres <- aggregate(imls.burn[!is.na(imls.burn$Burn_Date2),c("Acres")], by=imls.burn[!is.na(imls.burn$Burn_Date2),c("PlotID", "lat", "lon", "Burn_Date2", "Year")], FUN=mean)[,"x"]
+summary(burn.df2)
+summary(burn.df2[burn.df2$n.entry>1,])
+summary(burn.df2[burn.df2$Acres==0,])
+
+burn.yr  <- aggregate(burn.df2[,c("Burn_Date2")], by=burn.df2[,c("PlotID", "lat", "lon", "Year")], FUN=length)
+summary(burn.yr)
+burn.yr[burn.yr$x>1,]
+
+burn.sum  <- aggregate(burn.df2[,c("Burn_Date2")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=length)
+names(burn.sum)[which(names(burn.sum)=="x")] <- "burn.n"
+burn.sum$burn.first  <- aggregate(burn.df2[,c("Year")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=min)[,"x"]
+burn.sum$burn.last  <- aggregate(burn.df2[,c("Year")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=max)[,"x"]
+burn.sum <- merge(burn.sum, imls.df[,c("PlotID", "lon", "lat")], all=T)
+burn.sum[is.na(burn.sum$burn.n), "burn.n"] <- 0
+summary(burn.sum)
+
+burn.df2[burn.df2$PlotID=="LL-90" & burn.df2$Year==2017,]
+
+pdf("/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson/figures/Burn_Summaries.pdf")
+ggplot(data=burn.sum) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=burn.n)) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+
+ggplot(data=burn.sum) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=burn.first)) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+
+ggplot(data=burn.sum) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=burn.last)) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+dev.off()
+
+# summary(imls.df)
+
+# summary(harvest)
+# mgmt  <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Boundaries/New Management Units.shp")
+# harvest <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/Canopy Thinning/Canopy Thinning.shp")
+
+# imls.mgmt <- extract(mgmt, imls.all)
+# imls.mgmt$point.ID <- as.factor(imls.mgmt$point.ID)
+# summary(imls.mgmt)
 
 imls.df$AreaName <- car::recode(imls.mgmt$East_West, "'East Side'='East Woods'; 'Hidden Lake Forest Preser'='Hidden Lake'")
 imls.df$AreaName2 <- imls.mgmt$CommonName
@@ -93,12 +159,12 @@ imls.df$MgmtUnitArea <- imls.mgmt$Acres
 imls.df$ComClass <- imls.mgmt$ComClass
 summary(imls.df)
 
+# # imls.harvest <- over(imls.all, harvest)
 # imls.harvest <- over(imls.all, harvest)
-imls.harvest <- over(imls.all, harvest)
-summary(imls.harvest)
-dim(imls.harvest)
+# summary(imls.harvest)
+# dim(imls.harvest)
 
-imls.df$CanopyHarvest <- imls.harvest$Year
+# imls.df$CanopyHarvest <- imls.harvest$Year
 
 imls.burn <- extract(burn, imls.all)
 imls.burn <- merge(imls.burn, imls.df[,c("point.ID", "PlotID")])
@@ -111,6 +177,6 @@ dim(imls.burn)
 # Save all the info except the burn history
 path.out <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson/data_processed"
 write.csv(imls.df, file.path(path.out, "point_info_GIS.csv"), row.names=F)
-write.csv(imls.burn, file.path(path.out, "point_info_GIS_burnhistory_2017-12.csv"), row.names=F)
+write.csv(imls.burn, file.path(path.out, "point_info_GIS_burnhistory.csv"), row.names=F)
 write.csv(imls.harvest, file.path(path.out, "point_info_GIS_canopyharvest.csv"), row.names=F)
 write.csv(imls.soils, file.path(path.out, "point_info_GIS_soils.csv"), row.names=F)

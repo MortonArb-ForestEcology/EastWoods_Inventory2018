@@ -14,8 +14,6 @@ gdb.thin <- "Winter Clearing.gdb"
 # Working with the burn data
 burn.layers <- ogrListLayers(file.path(path.burn, gdb.burn))
 
-burn2 <- sf::st_read(file.path(path.burn, gdb.burn), "Burned_Area_Master")
-
 burn <- readOGR(file.path(path.burn, gdb.burn), "Burned_Area_Master")
 burn$Burn_Date2 <- as.Date(burn$Burn_Date)
 burn$Year <- lubridate::year(burn$Burn_Date2)
@@ -24,6 +22,9 @@ burn[grep("Pizzo", burn$NOTES),"Year"] <- 2008
 plot(burn)
 summary(burn)
 dim(burn)
+
+summary(burn[is.na(burn$Id),])
+summary(burn[burn$Location==" ",])
 
 burn.df <- data.frame(burn)
 
