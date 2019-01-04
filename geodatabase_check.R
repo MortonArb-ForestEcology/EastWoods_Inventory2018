@@ -6,19 +6,19 @@ library(ggplot2)
 path.home <- getwd() # Storing our base working directory
 
 # Set the paths & names of the geodatabases we want
-path.burn <- "/Volumes/GIS/Collections/Natural Resources Management/Burn"
+path.burn <- "/Volumes/GIS/Collections/MarKGIS/Management Unit Plans/"
 path.thin <- "/Volumes/GIS/Collections/Natural Resources Management/Winter Clearing"
-gdb.burn <- "Controlled Burn Areas Draft.gdb"
+gdb.burn <- "Controlled Burn Areas.gdb/"
 gdb.thin <- "Winter Clearing.gdb"
 
 # Working with the burn data
 burn.layers <- ogrListLayers(file.path(path.burn, gdb.burn))
 
-burn <- readOGR(file.path(path.burn, gdb.burn), "Burned_Area_Master")
-burn$Burn_Date2 <- as.Date(burn$Burn_Date)
-burn$Year <- lubridate::year(burn$Burn_Date2)
-burn[grep("2013", burn$NOTES),"Year"] <- 2013
-burn[grep("Pizzo", burn$NOTES),"Year"] <- 2008
+burn <- readOGR(file.path(path.burn, gdb.burn), "Completed_Burn_Areas")
+# burn$Burn_Date2 <- as.Date(burn$Burn_Date)
+# burn$Year <- lubridate::year(burn$Burn_Date2)
+# burn[grep("2013", burn$NOTES),"Year"] <- 2013
+# burn[grep("Pizzo", burn$NOTES),"Year"] <- 2008
 plot(burn)
 summary(burn)
 dim(burn)
@@ -31,8 +31,8 @@ burn.df <- data.frame(burn)
 summary(burn.df[is.na(burn.df$Burn_Date2),])
 
 # Tracking down things that have no burn date, but do have notes
-summary(burn.df[is.na(burn.df$Burn_Date2) & burn.df$NOTES!=" ",])
-test <- burn.df[is.na(burn.df$Burn_Date2) & burn.df$NOTES!=" ",c("NOTES")]
+summary(burn.df[is.na(burn.df$Burn_Date) & burn.df$NOTES!=" ",])
+test <- burn.df[is.na(burn.df$Burn_Date) & burn.df$NOTES!=" ",c("NOTES")]
 
 trow <- 1:length(test)
 test[!1:length(test) %in% grep("2013", test) & !1:length(test) %in% grep("Pizzo", test)]

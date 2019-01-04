@@ -77,13 +77,28 @@ summary(imls.df)
 
 
 # Getting Management Info
-path.burn <- "/Volumes/GIS/Collections/Natural Resources Management/Burn/Controlled Burn Areas Draft.gdb"
+path.burn <- "/Volumes/GIS/Collections/MarKGIS/Management Unit Plans/Controlled Burn Areas.gdb"
+burn.layers <- ogrListLayers(path.burn)
 
-burn <- readOGR(path.burn, "Burned_Area_Master")
-burn$Burn_Date2 <- as.Date(burn$Burn_Date)
-burn$Year <- lubridate::year(burn$Burn_Date2)
+burn <- readOGR(file.path(path.burn), "Completed_Burn_Areas")
+burn$Burn_Date <- as.Date(burn$Burn_Date)
+burn$Year <- lubridate::year(burn$Burn_Date)
+burn$Month <- lubridate::month(burn$Burn_Date)
+burn$season <- as.factor(ifelse(burn$Month<7, "spring", "fall"))
+burn[grep("2004", burn$NOTES),"Year"] <- 2004
+burn[grep("2005", burn$NOTES),"Year"] <- 2005
+burn[grep("2010", burn$NOTES),"Year"] <- 2010
+burn[grep("2011", burn$NOTES),"Year"] <- 2011
 burn[grep("2013", burn$NOTES),"Year"] <- 2013
-burn[grep("Pizzo", burn$NOTES),"Year"] <- 2008
+burn[grep("Pizzo Burn 2008", burn$NOTES),"Year"] <- 2008
+burn[grep("Pizzo Burn 2006", burn$NOTES),"Year"] <- 2006
+burn[grep("SPRING", toupper(burn$NOTES)),"season"] <- "spring"
+burn[grep("FALL", toupper(burn$NOTES)),"season"] <- "fall"
+burn$Year <- as.numeric(burn$Year)
+burn[burn$NOTES==" ","NOTES"] <- NA
+summary(burn)
+
+
 burn <- spTransform(burn, projection(imls.all))
 summary(burn)
 dim(burn)
@@ -98,18 +113,18 @@ summary(imls.burn[imls.burn$Year==2013 & !is.na(imls.burn$Year),])
 summary(imls.burn)
 
 library(ggplot2)
-burn.df2 <- aggregate(imls.burn[!is.na(imls.burn$Burn_Date2),c("Burn_Date2")], by=imls.burn[!is.na(imls.burn$Burn_Date2),c("PlotID", "lat", "lon", "Burn_Date2", "Year")], FUN=length)
+burn.df2 <- aggregate(imls.burn[!is.na(imls.burn$Burn_Date),c("Burn_Date")], by=imls.burn[!is.na(imls.burn$Burn_Date),c("PlotID", "lat", "lon", "Burn_Date", "Year", "Month", "season")], FUN=length)
 names(burn.df2)[which(names(burn.df2)=="x")] <- "n.entry"
-burn.df2$Acres <- aggregate(imls.burn[!is.na(imls.burn$Burn_Date2),c("Acres")], by=imls.burn[!is.na(imls.burn$Burn_Date2),c("PlotID", "lat", "lon", "Burn_Date2", "Year")], FUN=mean)[,"x"]
+burn.df2$Acres <- aggregate(imls.burn[!is.na(imls.burn$Burn_Date),c("Acres")], by=imls.burn[!is.na(imls.burn$Burn_Date),c("PlotID", "lat", "lon", "Burn_Date", "Year", "Month", "season")], FUN=mean)[,"x"]
 summary(burn.df2)
 summary(burn.df2[burn.df2$n.entry>1,])
 summary(burn.df2[burn.df2$Acres==0,])
 
-burn.yr  <- aggregate(burn.df2[,c("Burn_Date2")], by=burn.df2[,c("PlotID", "lat", "lon", "Year")], FUN=length)
+burn.yr  <- aggregate(burn.df2[,c("Burn_Date")], by=burn.df2[,c("PlotID", "lat", "lon", "Year", "season")], FUN=length)
 summary(burn.yr)
 burn.yr[burn.yr$x>1,]
 
-burn.sum  <- aggregate(burn.df2[,c("Burn_Date2")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=length)
+burn.sum  <- aggregate(burn.df2[,c("Burn_Date")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=length)
 names(burn.sum)[which(names(burn.sum)=="x")] <- "burn.n"
 burn.sum$burn.first  <- aggregate(burn.df2[,c("Year")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=min)[,"x"]
 burn.sum$burn.last  <- aggregate(burn.df2[,c("Year")], by=burn.df2[,c("PlotID", "lat", "lon")], FUN=max)[,"x"]
@@ -166,12 +181,12 @@ summary(imls.df)
 
 # imls.df$CanopyHarvest <- imls.harvest$Year
 
-imls.burn <- extract(burn, imls.all)
-imls.burn <- merge(imls.burn, imls.df[,c("point.ID", "PlotID")])
-summary(imls.burn)
-
-
-dim(imls.burn)
+# imls.burn <- extract(burn, imls.all)
+# imls.burn <- merge(imls.burn, imls.df[,c("point.ID", "PlotID")])
+# summary(imls.burn)
+# 
+# 
+# dim(imls.burn)
 
 
 # Save all the info except the burn history
