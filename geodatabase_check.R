@@ -11,7 +11,9 @@ path.thin <- "/Volumes/GIS/Collections/Natural Resources Management/Winter Clear
 gdb.burn <- "Controlled Burn Areas.gdb/"
 gdb.thin <- "Winter Clearing.gdb"
 
+# ------------------------------------------------------------------------------
 # Working with the burn data
+# ------------------------------------------------------------------------------
 burn.layers <- ogrListLayers(file.path(path.burn, gdb.burn))
 
 burn <- readOGR(file.path(path.burn, gdb.burn), "Completed_Burn_Areas")
@@ -45,10 +47,31 @@ dim(burn[is.na(burn.df$Burn_Date) & burn$NOTES!=" " & !1:nrow(burn) %in% grep("2
 # Looking at things with no dates and no notes
 summary(burn.df[is.na(burn.df$Burn_Date2) & burn.df$NOTES==" ",])
 plot(burn[is.na(burn$Burn_Date2) & burn$NOTES==" ",])
+# ------------------------------------------------------------------------------
 
-# ------------------------------
-# Trying a different layer to see what it looks like
-ew1 <- readOGR(file.path(path.burn, gdb.burn), "East_Woods_1")
-ew3 <- readOGR(file.path(path.burn, gdb.burn), "East_Woods_3")
-bigrock <- readOGR(file.path(path.burn, gdb.burn), "Burn_Units_Big_Rock_Woods_East")
-# ------------------------------
+
+# ------------------------------------------------------------------------------
+# Working with the thinning data
+# ------------------------------------------------------------------------------
+thin.layers <- ogrListLayers(file.path(path.thin, gdb.thin))
+
+thin1 <- readOGR(file.path(path.thin, gdb.thin), "Winter_Clearing")
+thin1$Year.Finish <- as.numeric(paste0(substr(thin1$Year,1,2), substr(thin1$Year,nchar(paste(thin1$Year))-1,nchar(paste(thin1$Year)))))
+summary(thin1)
+summary(thin1$Year)
+
+
+
+plot(thin1)
+
+thin.bob <- readOGR(file.path(path.thin, gdb.thin), "Bob_Fahey_Research")
+thin.res <- readOGR(file.path(path.thin, gdb.thin), "Winter_Thinning_06_07_Subplots")
+summary(thin.bob)
+summary(thin.res)
+
+plot(thin1)
+plot(thin.bob, add=T, col="red", pch=19)
+plot(thin.res, add=T, col="blue", pch=9)
+
+write.csv(data.frame(thin.bob), "Fahey_ResearchPlots.csv", row.names=F)
+# ------------------------------------------------------------------------------

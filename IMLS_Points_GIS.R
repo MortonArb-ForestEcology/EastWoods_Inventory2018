@@ -76,7 +76,9 @@ imls.df$wooded <- as.factor(car::recode(imls.df$ewoods, "'0'='yes'"))
 summary(imls.df)
 
 
-# Getting Management Info
+# -------------------------------
+# Getting Burn Info
+# -------------------------------
 path.burn <- "/Volumes/GIS/Collections/MarKGIS/Management Unit Plans/Controlled Burn Areas.gdb"
 burn.layers <- ogrListLayers(path.burn)
 
@@ -156,6 +158,76 @@ ggplot(data=burn.sum) +
   scale_color_distiller(palette = "Spectral") +
   theme_bw()
 dev.off()
+# -------------------------------
+
+
+# -------------------------------
+# Getting thinning info
+# -------------------------------
+path.thin <- "/Volumes/GIS/Collections/Natural Resources Management/Winter Clearing/Winter Clearing.gdb"
+thin.layers <- ogrListLayers(path.thin)
+
+# Shape files with areas (yay!)
+thin.nr <- readOGR(path.thin, "Winter_Clearing")
+thin.nr$Year.Finish <- as.numeric(paste0(substr(thin.nr$Year,1,2), substr(thin.nr$Year,nchar(paste(thin.nr$Year))-1,nchar(paste(thin.nr$Year)))))
+summary(thin.nr)
+
+# Point-based havests (boo!) -- we don't know much about these sizes, so we'll have to see what we can do
+thin.bob <- readOGR(path.thin, "Bob_Fahey_Research")
+thin.res <- readOGR(path.thin, "Winter_Thinning_06_07_Subplots")
+summary(thin.bob) # Note that some of bob's points might be marked wrong
+summary(thin.res)
+
+thin.nr <- spTransform(thin.nr, projection(imls.all))
+thin.bob <- spTransform(thin.bob, projection(imls.all))
+thin.res <- spTransform(thin.res, projection(imls.all))
+summary(thin.nr)
+dim(thin.nr)
+
+imls.thin.nr <- extract(thin.nr[,], imls.all)
+imls.thin.nr <- merge(imls.thin.nr, imls.df[,c("point.ID", "PlotID", "lon", "lat")])
+summary(imls.thin.nr)
+
+# Putting a 20-m radius around the two point-based products.
+bob.buff <- rgeos::gBuffer(thin.bob, width=25, byid = T)
+res.buff <- rgeos::gBuffer(thin.res, width=25, byid = T)
+summary(bob.buff)
+summary(res.buff)
+# plot(bob.buff)
+# plot(thin.bob)
+
+# Attach the data frame info to the buffers
+# bob.buff.id <- sapply(slot(bob.buff, "polygons"), function(x) slot(x, "ID"))
+# bob.buff.df <- data.frame(ID=1:length(bob.buff), row.names = bob.buff.id)
+# bob.buff <- SpatialPolygonsDataFrame(bob.buff, bob.buff.df)
+
+# bob.buff2 <- SpatialPolygonsDataFrame(bob.buff, data.frame(thin.bob))
+# ( pid <- sapply(slot(p, "polygons"), function(x) slot(x, "ID")) )
+# 
+# # Create dataframe with correct rownames
+# ( p.df <- data.frame( ID=1:length(p), row.names = pid) )
+# 
+# # Try coersion again and check class
+# p <- SpatialPolygonsDataFrame(p, p.df)
+# class(p)
+
+imls.bob <- extract(bob.buff[,], imls.all)
+imls.bob <- merge(imls.bob, imls.df[,c("point.ID", "PlotID", "lon", "lat")])
+imls.res <- extract(res.buff[,], imls.all)
+imls.res <- merge(imls.res, imls.df[,c("point.ID", "PlotID", "lon", "lat")])
+# imls.bob$point.ID <- as.factor(imls.bob$point.ID)
+summary(imls.bob)
+summary(imls.res)
+
+
+ggplot(data=imls.thin.nr) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=Year.Finish)) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+
+# -------------------------------
 
 # summary(imls.df)
 
