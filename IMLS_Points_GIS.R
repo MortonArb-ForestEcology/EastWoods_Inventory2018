@@ -217,15 +217,36 @@ imls.res <- extract(res.buff[,], imls.all)
 imls.res <- merge(imls.res, imls.df[,c("point.ID", "PlotID", "lon", "lat")])
 # imls.bob$point.ID <- as.factor(imls.bob$point.ID)
 summary(imls.bob)
-summary(imls.res)
+summary(imls.res) 
 
 
+pdf("/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson/figures/Thin_Summaries.pdf")
 ggplot(data=imls.thin.nr) +
+  ggtitle("Natural Resources Thin") +
   coord_equal() +
   geom_point(aes(x=lon, y=lat, color=Year.Finish)) +
   # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
   scale_color_distiller(palette = "Spectral") +
   theme_bw()
+
+ggplot(data=imls.res) +
+  ggtitle("Research Thin") +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=treatment)) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  # scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+
+ggplot(data=imls.bob) +
+  ggtitle("Fahey Thin (Missing Metadata)") +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=Comment)) +
+  guides(color=F) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  # scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+dev.off()
+
 
 # -------------------------------
 
@@ -239,12 +260,12 @@ ggplot(data=imls.thin.nr) +
 # imls.mgmt$point.ID <- as.factor(imls.mgmt$point.ID)
 # summary(imls.mgmt)
 
-imls.df$AreaName <- car::recode(imls.mgmt$East_West, "'East Side'='East Woods'; 'Hidden Lake Forest Preser'='Hidden Lake'")
-imls.df$AreaName2 <- imls.mgmt$CommonName
-imls.df$MgmtUnit <- imls.mgmt$UnitNumber
-imls.df$MgmtUnitArea <- imls.mgmt$Acres
-imls.df$ComClass <- imls.mgmt$ComClass
-summary(imls.df)
+# imls.df$AreaName <- car::recode(imls.mgmt$East_West, "'East Side'='East Woods'; 'Hidden Lake Forest Preser'='Hidden Lake'")
+# imls.df$AreaName2 <- imls.mgmt$CommonName
+# imls.df$MgmtUnit <- imls.mgmt$UnitNumber
+# imls.df$MgmtUnitArea <- imls.mgmt$Acres
+# imls.df$ComClass <- imls.mgmt$ComClass
+# summary(imls.df)
 
 # # imls.harvest <- over(imls.all, harvest)
 # imls.harvest <- over(imls.all, harvest)
@@ -265,5 +286,9 @@ summary(imls.df)
 path.out <- "/Volumes/GoogleDrive/My Drive/East Woods/Inventory 2018/Analyses_Rollinson/data_processed"
 write.csv(imls.df, file.path(path.out, "point_info_GIS.csv"), row.names=F)
 write.csv(imls.burn, file.path(path.out, "point_info_GIS_burnhistory.csv"), row.names=F)
-write.csv(imls.harvest, file.path(path.out, "point_info_GIS_canopyharvest.csv"), row.names=F)
-write.csv(imls.soils, file.path(path.out, "point_info_GIS_soils.csv"), row.names=F)
+write.csv(imls.thin.nr, file.path(path.out, "point_info_GIS_thinning_natres.csv"), row.names=F)
+write.csv(imls.res, file.path(path.out, "point_info_GIS_thinning_research.csv"), row.names=F)
+write.csv(imls.bob, file.path(path.out, "point_info_GIS_thinning_fahey.csv"), row.names=F)
+# write.csv(imls.harvest, file.path(path.out, "point_info_GIS_canopyharvest.csv"), row.names=F)
+# write.csv(imls.soils, file.path(path.out, "point_info_GIS_soils.csv"), row.names=F)
+# 
