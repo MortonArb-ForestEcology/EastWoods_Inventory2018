@@ -7,8 +7,8 @@ library(raster); library(rgdal); library(rgeos)
 library(lubridate)
 
 # File paths
-path.ew <- "~/Desktop/Research/EastWoods-MonitoringPlots/plot_selection/"
-google.gis <- "/Volumes/GoogleDrive/My Drive/East Woods/GIS_files"
+path.ew <- "../EastWoods-MonitoringPlots/plot_selection/" # This is a different github repository
+google.gis <- "/Volumes/GoogleDrive/My Drive/East Woods/GIS_files" 
 dir.terrain <- file.path(path.ew, "../EastWoods_GIS")
 path.gis <- "/Volumes/GIS/"
 
@@ -72,7 +72,7 @@ dim(imls.soils)
 woods <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/2008 vegetative cover type/Woodland.shp")
 # woods <- woods[2,] # We only want to worry about the main block; row 1 = King's Grove, row 2= main tract; row 3 = weird 
 imls.df$wooded <- over(imls.all, woods)[,1]
-imls.df$wooded <- as.factor(car::recode(imls.df$ewoods, "'0'='yes'"))
+imls.df$wooded <- as.factor(car::recode(imls.df$wooded, "'0'='yes'"))
 summary(imls.df)
 
 
@@ -100,6 +100,11 @@ burn$Year <- as.numeric(burn$Year)
 burn[burn$NOTES==" ","NOTES"] <- NA
 summary(burn)
 
+# Checking things with no burn year 
+plot(burn)
+plot(burn[is.na(burn$Year),])
+noburn <- data.frame(burn[is.na(burn$Year),"NOTES"])
+paste(noburn[,1])
 
 burn <- spTransform(burn, projection(imls.all))
 summary(burn)
