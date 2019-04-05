@@ -43,7 +43,7 @@ summary(imls.spat); head(imls.spat)
 # Read in and format data
 # ----------------------------
 # 2018 Trees
-tree.2018 <- read_excel(file.path(path.2018, "18-0073 Morton 2018 Spring Veg Data_AES-edits_Oct-22 (1).xlsx"), sheet = "Tree Layer")
+tree.2018 <- read_excel(file.path(path.2018, "18-0073 Morton 2018 Spring Veg Data_AES-edits_Oct-22.xlsx"), sheet = "Tree Layer")
 names(tree.2018) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "DBH", "Canopy", "Decay", "Vigor", "Notes")
 tree.2018$Sampler <- as.factor(tree.2018$Sampler)
 tree.2018$PlotID <- as.factor(tree.2018$PlotID)
