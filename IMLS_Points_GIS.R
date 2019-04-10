@@ -82,7 +82,31 @@ summary(imls.df)
 path.burn <- "/Volumes/GIS/Collections/MarKGIS/Management Unit Plans/Controlled Burn Areas.gdb"
 burn.layers <- ogrListLayers(path.burn)
 
-burn <- readOGR(file.path(path.burn), "Completed_Burn_Areas")
+# tag IMLS plots as annual burn and no burn
+burn.units <- readOGR(file.path(path.burn), "Burn_Units_1")
+burn.units$Location
+plot(burn.units)
+s40 <- burn.units[burn.units$Location=="South 40 South",]
+plot(s40); plot(imls.all, add=T)
+
+# test <- point.in.polygon(spTransform(imls.all, projection(s40)), s40)
+unit.extract <- over(spTransform(imls.all, projection(burn.units)), burn.units)
+summary(unit.extract)
+
+imls.df$unit <- unit.extract$Location
+
+summary(imls.df)
+ggplot(data=imls.df[imls.df$wooded=="yes",]) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=unit)) +
+  guides(color=F) +
+  # geom_point(data=burn.sum[burn.sum$burn.n==0,], aes(x=lon, y=lat), color="black") +
+  # scale_color_distiller(palette = "Spectral") +
+  theme_bw()
+# 
+
+# -------------------------------
+burn <- readOGR(file.path(path.burn), "Completed_Burn_Areas_Final_4_5_19")
 burn$Burn_Date <- as.Date(burn$Burn_Date)
 burn$Year <- lubridate::year(burn$Burn_Date)
 burn$Month <- lubridate::month(burn$Burn_Date)
@@ -113,6 +137,8 @@ dim(burn)
 data.frame(burn[burn$Year==2013 & !is.na(burn$Year) & is.na(burn$Burn_Date),])
 plot(burn[burn$Year==2013 & !is.na(burn$Year) & is.na(burn$Burn_Date),])
 
+
+# Extracting burn events
 imls.burn <- extract(burn[!is.na(burn$Year),], imls.all)
 imls.burn <- merge(imls.burn, imls.df[,c("point.ID", "PlotID", "lon", "lat")])
 summary(imls.burn[is.na(imls.burn$Year),])
