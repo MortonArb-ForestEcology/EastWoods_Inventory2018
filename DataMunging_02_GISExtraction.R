@@ -70,8 +70,10 @@ dim(imls.soils)
 
 # Woodland boundarys
 woods <- readOGR("/Volumes/GIS/Collections/Natural Resources Management/2008 vegetative cover type/Woodland.shp")
+woods$Location <- c("Hidden Lake", "East Woods", "Other")
 # woods <- woods[2,] # We only want to worry about the main block; row 1 = King's Grove, row 2= main tract; row 3 = weird 
-imls.df$wooded <- over(imls.all, woods)[,1]
+test <- over(imls.all, woods)
+imls.df$wooded <- over(imls.all, woods)$Location
 imls.df$wooded <- as.factor(car::recode(imls.df$wooded, "'0'='yes'"))
 summary(imls.df)
 
