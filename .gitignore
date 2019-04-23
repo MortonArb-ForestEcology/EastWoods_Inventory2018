@@ -2,3 +2,5 @@ RAW/*
 SSURGO_IMLS/*
 Fahey_ResearchPlots.csv
 .Rhistory
+.Rapp.history
+*.history
