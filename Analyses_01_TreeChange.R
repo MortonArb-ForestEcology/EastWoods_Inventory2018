@@ -129,6 +129,8 @@ dat.tree.all <- rbind(tree.2007[,c("Year", "PlotID", "Spp.Name", "Spp.Code", "St
 dat.tree.all$Genus <- as.factor(unlist(lapply(stringr::str_split(dat.tree.all$Spp.Name, " "), function(x) x[1])))
 dat.tree.all$BA <- pi*(dat.tree.all$DBH/2)^2 # in cm2
 summary(dat.tree.all)
+
+write.csv(dat.tree.all, file.path(path.out, "data_processed", "InventoryData_Trees_Merged_2007_2017.csv"), row.names=F)
 # ----------------------------
 # -----------------------------------------------------------
 
