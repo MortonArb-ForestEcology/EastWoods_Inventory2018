@@ -288,7 +288,7 @@ summary(anova.mgmt.quma2)
 anova(anova.mgmt.quma2)
 
 
-png(file.path(path.out, "figures", "BasalArea_Comparison_Quercus_Focal_MgmtUnit.png"), height=6, width=8, units="in", res=180)
+png(file.path(path.out, "figures", "BasalArea_Comparison_Species_Quercus_Focal_MgmtUnit.png"), height=6, width=8, units="in", res=180)
 ggplot(data=dat.plot.spp[dat.plot.spp$Status=="live" & dat.plot.spp$Genus %in% gen.interest, ]) +
   facet_grid(Genus~Year, scales="free_y") +
   geom_boxplot(aes(x=MgmtUnit, y=BA.tot, fill=MgmtUnit)) +
@@ -302,7 +302,7 @@ ggplot(data=dat.plot.spp[dat.plot.spp$Status=="live" & dat.plot.spp$Genus %in% g
         axis.text.x=element_text(angle=-30, hjust=0))
 dev.off()
 
-png(file.path(path.out, "figures", "BasalArea_Comparison_Quercus_Focal_MgmtUnit_2018.png"), height=6, width=6, units="in", res=180)
+png(file.path(path.out, "figures", "BasalArea_Comparison_Species_Quercus_Focal_MgmtUnit_2018.png"), height=6, width=6, units="in", res=180)
 ggplot(data=dat.plot.spp[dat.plot.spp$Status=="live" & dat.plot.spp$Genus %in% gen.interest & dat.plot.spp$Year==2018, ]) +
   facet_grid(Genus~Year, scales="free_y") +
   geom_boxplot(aes(x=MgmtUnit, y=BA.tot, fill=MgmtUnit)) +
@@ -316,7 +316,7 @@ ggplot(data=dat.plot.spp[dat.plot.spp$Status=="live" & dat.plot.spp$Genus %in% g
         axis.text.x=element_text(angle=-30, hjust=0))
 dev.off()
 
-png(file.path(path.out, "figures", "BasalArea_Change_Quercus_Focal_MgmtUnit.png"), height=6, width=6, units="in", res=180)
+png(file.path(path.out, "figures", "BasalArea_Change_Species_Quercus_Focal_MgmtUnit.png"), height=6, width=6, units="in", res=180)
 ggplot(data=plot.spp.ba[plot.spp.ba$Genus %in% gen.interest, ]) +
   facet_grid(Genus~.) +
   geom_histogram(aes(x=Change, fill=MgmtUnit)) +
