@@ -73,11 +73,17 @@ plot.ba <- tidyr::spread(dat.plot[dat.plot$Status=="live",c("PlotID", "MgmtUnit"
 plot.ba[is.na(plot.ba)] <- 0
 plot.ba$Change <- plot.ba$`2018` - plot.ba$`2007`
 summary(plot.ba)
+plot.n <- tidyr::spread(dat.plot[dat.plot$Status=="live",c("PlotID", "MgmtUnit", "Year", "n")], Year, n)
+plot.n[is.na(plot.n)] <- 0
+plot.n$Change <- plot.n$`2018` - plot.n$`2007`
+summary(plot.n)
 
 # Summarizing Change
 change.plot <- aggregate(plot.ba$Change, by=list(plot.ba[,c("MgmtUnit")]), FUN=mean)
-names(change.plot)[which(names(change.plot)=="x")] <- "diff.mean"
-change.plot$diff.sd <- aggregate(plot.ba$Change, by=list(plot.ba[,c("MgmtUnit")]), FUN=sd)[,"x"]
+names(change.plot)[which(names(change.plot)=="x")] <- "BA.diff.mean"
+change.plot$BA.diff.sd <- aggregate(plot.ba$Change, by=list(plot.ba[,c("MgmtUnit")]), FUN=sd)[,"x"]
+change.plot$n.diff.mean <- aggregate(plot.n$Change, by=list(plot.n[,c("MgmtUnit")]), FUN=mean)[,"x"]
+change.plot$n.diff.sd <- aggregate(plot.n$Change, by=list(plot.n[,c("MgmtUnit")]), FUN=mean)[,"x"]
 change.plot
 # -----------------------------
 
@@ -106,10 +112,17 @@ plot.gen.ba[is.na(plot.gen.ba)] <- 0
 plot.gen.ba$Change <- plot.gen.ba$`2018` - plot.gen.ba$`2007`
 summary(plot.gen.ba)
 
+plot.gen.n <- tidyr::spread(dat.plot.gen[dat.plot.gen$Status=="live",c("PlotID", "MgmtUnit", "Genus", "Year", "n")], Year, n)
+plot.gen.n[is.na(plot.gen.n)] <- 0
+plot.gen.n$Change <- plot.gen.n$`2018` - plot.gen.n$`2007`
+summary(plot.gen.n)
+
 # Summarizing Change
 change.gen <- aggregate(plot.gen.ba$Change, by=plot.gen.ba[,c("Genus", "MgmtUnit")], FUN=mean)
-names(change.gen)[which(names(change.gen)=="x")] <- "diff.mean"
-change.gen$diff.sd <- aggregate(plot.gen.ba$Change, by=plot.gen.ba[,c("Genus", "MgmtUnit")], FUN=sd)[,"x"]
+names(change.gen)[which(names(change.gen)=="x")] <- "BA.diff.mean"
+change.gen$BA.diff.sd <- aggregate(plot.gen.ba$Change, by=plot.gen.ba[,c("Genus", "MgmtUnit")], FUN=sd)[,"x"]
+change.gen$n <- aggregate(plot.gen.n$Change, by=plot.gen.n[,c("Genus", "MgmtUnit")], FUN=mean)[,"x"]
+change.gen$diff.sd <- aggregate(plot.gen.n$Change, by=plot.gen.n[,c("Genus", "MgmtUnit")], FUN=sd)[,"x"]
 change.gen <- change.gen[order(change.gen$Genus),]
 head(change.gen)
 summary(change.gen)
@@ -140,10 +153,17 @@ plot.spp.ba[is.na(plot.spp.ba)] <- 0
 plot.spp.ba$Change <- plot.spp.ba$`2018` - plot.spp.ba$`2007`
 summary(plot.spp.ba)
 
+plot.spp.n <- tidyr::spread(dat.plot.spp[dat.plot.spp$Status=="live",c("PlotID", "MgmtUnit", "Genus", "Spp.Name", "Year", "n")], Year, n)
+plot.spp.n[is.na(plot.spp.n)] <- 0
+plot.spp.n$Change <- plot.spp.n$`2018` - plot.spp.n$`2007`
+summary(plot.spp.n)
+
 # Summarizing Change
 change.spp <- aggregate(plot.spp.ba$Change, by=plot.spp.ba[,c("MgmtUnit", "Genus", "Spp.Name")], FUN=mean)
-names(change.spp)[which(names(change.spp)=="x")] <- "diff.mean"
-change.spp$diff.sd <- aggregate(plot.spp.ba$Change, by=plot.spp.ba[,c("MgmtUnit", "Genus", "Spp.Name")], FUN=sd)[,"x"]
+names(change.spp)[which(names(change.spp)=="x")] <- "BA.diff.mean"
+change.spp$BA.diff.sd <- aggregate(plot.spp.ba$Change, by=plot.spp.ba[,c("MgmtUnit", "Genus", "Spp.Name")], FUN=sd)[,"x"]
+change.spp$n.diff.mean <- aggregate(plot.spp.n$Change, by=plot.spp.n[,c("MgmtUnit", "Genus", "Spp.Name")], FUN=mean)[,"x"]
+change.spp$n.diff.sd <- aggregate(plot.spp.n$Change, by=plot.spp.n[,c("MgmtUnit", "Genus", "Spp.Name")], FUN=sd)[,"x"]
 summary(change.spp)
 # -----------------------------
 
@@ -158,18 +178,38 @@ summary(change.spp)
 write.csv(change.plot, file.path(path.out, "data_summary", "BasalArea_Change_Plot_Management.csv"), row.names=F)
 
 plot.ba$MgmtUnit2 <- as.factor(ifelse(plot.ba$MgmtUnit=="Hidden Lake", "No Management", paste(plot.ba$MgmtUnit)))
+plot.n$MgmtUnit2 <- as.factor(ifelse(plot.n$MgmtUnit=="Hidden Lake", "No Management", paste(plot.n$MgmtUnit)))
 summary(plot.ba)
 
 
 # Quercus Analysis
-anova.mgmt <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.ba)
-summary(anova.mgmt)
-anova(anova.mgmt)
+anova.ba.mgmt <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.ba)
+summary(anova.ba.mgmt)
+anova(anova.ba.mgmt)
+
+anova.n.mgmt <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.n)
+summary(anova.n.mgmt)
+anova(anova.n.mgmt)
+
 
 png(file.path(path.out, "figures", "BasalArea_Comparison_Plot_MgmtUnit.png"), height=6, width=8, units="in", res=180)
 ggplot(data=dat.plot[dat.plot$Status=="live", ]) +
   facet_grid(.~Year, scales="free_y") +
   geom_boxplot(aes(x=MgmtUnit, y=BA.tot, fill=MgmtUnit)) +
+  scale_x_discrete(name="Management Unit") +
+  scale_y_continuous(name="Total Basal Area (cm2)") +
+  # guides(fill=F) +
+  theme_bw() +
+  theme(legend.position="top",
+        legend.title=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=-30, hjust=0))
+dev.off()
+
+png(file.path(path.out, "figures", "NumStems_Comparison_Plot_MgmtUnit.png"), height=6, width=8, units="in", res=180)
+ggplot(data=dat.plot[dat.plot$Status=="live", ]) +
+  facet_grid(.~Year, scales="free_y") +
+  geom_boxplot(aes(x=MgmtUnit, y=n, fill=MgmtUnit)) +
   scale_x_discrete(name="Management Unit") +
   scale_y_continuous(name="Total Basal Area (cm2)") +
   # guides(fill=F) +
@@ -193,6 +233,21 @@ ggplot(data=plot.ba) +
   theme(legend.position="top",
         legend.title=element_blank())
 dev.off()
+
+png(file.path(path.out, "figures", "NumStems_Change_Plot_MgmtUnit.png"), height=6, width=6, units="in", res=180)
+ggplot(data=plot.n) +
+  # facet_grid(Genus~.) +
+  geom_histogram(aes(x=Change, fill=MgmtUnit)) +
+  # geom_text(data=change.gen[change.gen$Genus %in% gen.interest, ], x=-12500, y=125, aes(label=paste0("mean = ", round(diff.mean, 0), "; sd = ", round(diff.sd, 0)))) +
+  geom_vline(xintercept = 0, linetype="dashed") +
+  scale_x_continuous(name="Change in Basal Area (cm2)") +
+  scale_y_continuous(name="Number Plots Showing Change") +
+  # guides(fill=F) +
+  theme_bw() +
+  theme(legend.position="top",
+        legend.title=element_blank())
+dev.off()
+
 # -----------------------------
 
 # -----------------------------
@@ -201,27 +256,54 @@ dev.off()
 write.csv(change.gen[change.gen$Genus %in% gen.interest,], file.path(path.out, "data_summary", "BasalArea_Change_Genera_Management.csv"), row.names=F)
 
 plot.gen.ba$MgmtUnit2 <- as.factor(ifelse(plot.gen.ba$MgmtUnit=="Hidden Lake", "No Management", paste(plot.gen.ba$MgmtUnit)))
+plot.gen.n$MgmtUnit2 <- as.factor(ifelse(plot.gen.n$MgmtUnit=="Hidden Lake", "No Management", paste(plot.gen.n$MgmtUnit)))
 summary(plot.gen.ba)
 
 # Quercus Analysis
-anova.mgmt.quercus <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.ba[plot.gen.ba$Genus=="Quercus", ])
-summary(anova.mgmt.quercus)
-anova(anova.mgmt.quercus)
+anova.ba.mgmt.quer <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.ba[plot.gen.ba$Genus=="Quercus", ])
+summary(anova.ba.mgmt.quer)
+anova(anova.ba.mgmt.quer)
+
+anova.n.mgmt.quer <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.n[plot.gen.n$Genus=="Quercus", ])
+summary(anova.n.mgmt.quer)
+anova(anova.n.mgmt.quer)
 
 # Acer Analysis
-anova.mgmt.acer <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.ba[plot.gen.ba$Genus=="Acer", ])
-summary(anova.mgmt.acer)
-anova(anova.mgmt.acer)
+anova.ba.mgmt.acer <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.ba[plot.gen.ba$Genus=="Acer", ])
+summary(anova.ba.mgmt.acer)
+anova(anova.ba.mgmt.acer)
+
+anova.n.mgmt.acer <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.n[plot.gen.n$Genus=="Acer", ])
+summary(anova.n.mgmt.acer)
+anova(anova.n.mgmt.acer)
 
 # Fraxinus Analysis
-anova.mgmt.frax <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.ba[plot.gen.ba$Genus=="Fraxinus", ])
-summary(anova.mgmt.frax)
-anova(anova.mgmt.frax)
+anova.ba.mgmt.frax <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.ba[plot.gen.ba$Genus=="Fraxinus", ])
+summary(anova.ba.mgmt.frax)
+anova(anova.ba.mgmt.frax)
+
+anova.n.mgmt.frax <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.gen.n[plot.gen.n$Genus=="Fraxinus", ])
+summary(anova.n.mgmt.frax)
+anova(anova.n.mgmt.frax)
 
 png(file.path(path.out, "figures", "BasalArea_Comparison_Genera_Focal_MgmtUnit.png"), height=6, width=8, units="in", res=180)
 ggplot(data=dat.plot.gen[dat.plot.gen$Status=="live" & dat.plot.gen$Genus %in% gen.interest, ]) +
   facet_grid(Genus~Year, scales="free_y") +
   geom_boxplot(aes(x=MgmtUnit, y=BA.tot, fill=MgmtUnit)) +
+  scale_x_discrete(name="Management Unit") +
+  scale_y_continuous(name="Total Basal Area (cm2)") +
+  # guides(fill=F) +
+  theme_bw() +
+  theme(legend.position="top",
+        legend.title=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=-30, hjust=0))
+dev.off()
+
+png(file.path(path.out, "figures", "NumStems_Comparison_Genera_Focal_MgmtUnit.png"), height=6, width=8, units="in", res=180)
+ggplot(data=dat.plot.gen[dat.plot.gen$Status=="live" & dat.plot.gen$Genus %in% gen.interest, ]) +
+  facet_grid(Genus~Year, scales="free_y") +
+  geom_boxplot(aes(x=MgmtUnit, y=n, fill=MgmtUnit)) +
   scale_x_discrete(name="Management Unit") +
   scale_y_continuous(name="Total Basal Area (cm2)") +
   # guides(fill=F) +
@@ -259,6 +341,20 @@ ggplot(data=plot.gen.ba[plot.gen.ba$Genus %in% gen.interest, ]) +
   theme(legend.position="top",
         legend.title=element_blank())
 dev.off()
+
+png(file.path(path.out, "figures", "NumStems_Change_Genera_Focal_MgmtUnit.png"), height=6, width=6, units="in", res=180)
+ggplot(data=plot.gen.n[plot.gen.n$Genus %in% gen.interest, ]) +
+  facet_grid(Genus~.) +
+  geom_histogram(aes(x=Change, fill=MgmtUnit)) +
+  # geom_text(data=change.gen[change.gen$Genus %in% gen.interest, ], x=-12500, y=125, aes(label=paste0("mean = ", round(diff.mean, 0), "; sd = ", round(diff.sd, 0)))) +
+  geom_vline(xintercept = 0, linetype="dashed") +
+  scale_x_continuous(name="Change in Basal Area (cm2)") +
+  scale_y_continuous(name="Number Plots Showing Change") +
+  # guides(fill=F) +
+  theme_bw() +
+  theme(legend.position="top",
+        legend.title=element_blank())
+dev.off()
 # -----------------------------
 
 # -----------------------------
@@ -267,25 +363,47 @@ dev.off()
 write.csv(change.spp[change.spp$Spp.Name %in% paste("Quercus", spp.quercus),], file.path(path.out, "data_summary", "BasalArea_Change_Species_Management.csv"), row.names=F)
 
 plot.spp.ba$MgmtUnit2 <- as.factor(ifelse(plot.spp.ba$MgmtUnit=="Hidden Lake", "No Management", paste(plot.spp.ba$MgmtUnit)))
+plot.spp.n$MgmtUnit2 <- as.factor(ifelse(plot.spp.n$MgmtUnit=="Hidden Lake", "No Management", paste(plot.spp.n$MgmtUnit)))
 summary(plot.spp.ba)
 
 # Quercus alba Analysis
-anova.mgmt.qual <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus alba", ])
-summary(anova.mgmt.qual)
-anova(anova.mgmt.qual)
+anova.ba.mgmt.qual <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus alba", ])
+summary(anova.ba.mgmt.qual)
+anova(anova.ba.mgmt.qual)
+
+anova.n.mgmt.qual <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.n[plot.spp.n$Spp.Name=="Quercus alba", ])
+summary(anova.n.mgmt.qual)
+anova(anova.n.mgmt.qual)
 
 # Quercus rubra Analysis
-anova.mgmt.quru <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus rubra", ])
-summary(anova.mgmt.quru)
-anova(anova.mgmt.quru)
+anova.ba.mgmt.quru <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus rubra", ])
+summary(anova.ba.mgmt.quru)
+anova(anova.ba.mgmt.quru)
+
+anova.n.mgmt.quru <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.n[plot.spp.n$Spp.Name=="Quercus rubra", ])
+summary(anova.n.mgmt.quru)
+anova(anova.n.mgmt.quru)
 
 # Quercus macrocarpa Analysis
-anova.mgmt.quma <- lm(Change ~ relevel(MgmtUnit, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus macrocarpa", ])
-summary(anova.mgmt.quma)
-anova(anova.mgmt.quma)
-anova.mgmt.quma2 <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus macrocarpa", ])
-summary(anova.mgmt.quma2)
-anova(anova.mgmt.quma2)
+anova.ba.mgmt.quma <- lm(Change ~ relevel(MgmtUnit, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus macrocarpa", ])
+summary(anova.ba.mgmt.quma)
+anova(anova.ba.mgmt.quma)
+
+anova.ba.mgmt.quma2 <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.ba[plot.spp.ba$Spp.Name=="Quercus macrocarpa", ])
+summary(anova.ba.mgmt.quma2)
+anova(anova.ba.mgmt.quma2)
+
+anova.n.mgmt.quma <- lm(Change ~ relevel(MgmtUnit, ref="No Management"), data=plot.spp.n[plot.spp.n$Spp.Name=="Quercus macrocarpa", ])
+summary(anova.n.mgmt.quma)
+anova(anova.n.mgmt.quma)
+
+anova.n.mgmt.qumaB <- lm(Change ~ relevel(MgmtUnit, ref="No Management")-1, data=plot.spp.n[plot.spp.n$Spp.Name=="Quercus macrocarpa", ])
+summary(anova.n.mgmt.qumaB)
+anova(anova.n.mgmt.qumaB)
+
+anova.n.mgmt.quma2 <- lm(Change ~ relevel(MgmtUnit2, ref="No Management"), data=plot.spp.n[plot.spp.n$Spp.Name=="Quercus macrocarpa", ])
+summary(anova.n.mgmt.quma2)
+anova(anova.n.mgmt.quma2)
 
 
 png(file.path(path.out, "figures", "BasalArea_Comparison_Species_Quercus_Focal_MgmtUnit.png"), height=6, width=8, units="in", res=180)
