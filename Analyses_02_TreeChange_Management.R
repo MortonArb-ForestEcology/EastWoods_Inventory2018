@@ -38,7 +38,17 @@ summary(dat.gis)
 
 ggplot(data=dat.gis) +
   coord_equal() +
-  geom_point(aes(x=lon, y=lat, color=MgmtUnit))
+  geom_point(aes(x=lon, y=lat, color=MgmtUnit), size=1.5)
+
+ggplot(data=dat.gis[!dat.gis$MgmtUnit %in% c("Non-Wooded", "Hidden Lake"),]) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=MgmtUnit), size=1.5)
+
+ggplot(data=dat.gis[!dat.gis$wooded %in% c("Hidden Lake", "Other"),]) +
+  coord_equal() +
+  geom_point(aes(x=lon, y=lat, color=wooded), size=1.5)
+
+
 
 # Add plot info to raw tree data
 dat.tree.all <- merge(dat.tree.all, dat.gis[,c("PlotID", "wooded", "unit", "MgmtUnit")], all.x=T)
