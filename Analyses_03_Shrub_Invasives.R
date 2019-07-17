@@ -33,8 +33,11 @@ imls.spat$MgmtUnit <- ifelse(is.na(imls.spat$wooded), "Non-Wooded",
 imls.spat$MgmtUnit[is.na(imls.spat$MgmtUnit)] <- "No Management"
 
 imls.spat$MgmtUnit2 <- ifelse(imls.spat$PlotID %in% plot.vols, "Volunteers", imls.spat$MgmtUnit)
-imls.spat$MgmtUnit <- as.factor(imls.spat$MgmtUnit)
+imls.spat$MgmtUnit3 <- ifelse(imls.spat$MgmtUnit=="Hidden Lake", "No Management", imls.spat$MgmtUnit)
+imls.spat$MgmtUnit <- factor(imls.spat$MgmtUnit, levels=c("Annual Burn", "Mixed Management", "No Management", "Hidden Lake", "Non-Wooded"))
+imls.spat$MgmtUnit2 <- factor(imls.spat$MgmtUnit2, levels=c("Annual Burn", "Mixed Management", "No Management", "Hidden Lake", "Volunteers", "Non-Wooded"))
 imls.spat$MgmtUnit2 <- as.factor(imls.spat$MgmtUnit2)
+imls.spat$MgmtUnit3 <- as.factor(imls.spat$MgmtUnit3)
 summary(imls.spat)
 
 
@@ -46,7 +49,7 @@ plots.hl <- imls.spat$PlotID[which(imls.spat$wooded=="Hidden Lake")]
 # -----------------------------------------------------------
 # Reading and formatting Shrub Datasets
 # -----------------------------------------------------------
-shrub.2018 <- data.frame(readxl::read_excel(file.path(path.2018, "18-0073 Morton 2018 Spring Veg Data_AES-edits_Oct-22 (1).xlsx"), sheet = "Shrub Layer"))
+shrub.2018 <- data.frame(readxl::read_excel(file.path(path.2018, "18-0073 Morton 2018 Spring Veg Data_AES-edits_Oct-22.xlsx"), sheet = "Shrub Layer"))
 names(shrub.2018) <- c("Date", "Sampler", "PlotID", "Spp.Code", "Spp.Name", "Category", "Category.Sapling", "Count", "Notes")
 # shrub.2018 <- data.frame(shrub.2018)
 shrub.2018$Sampler <- as.factor(shrub.2018$Sampler)
@@ -59,7 +62,7 @@ shrub.2018$Notes <- as.factor(shrub.2018$Notes)
 shrub.2018$Year <- 2018
 summary(shrub.2018)
 
-shrub.2018 <- merge(shrub.2018, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded", "unit", "MgmtUnit", "MgmtUnit2")], all.x=T, all.y=T)
+shrub.2018 <- merge(shrub.2018, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded", "unit", "MgmtUnit", "MgmtUnit2", "MgmtUnit3")], all.x=T, all.y=T)
 shrub.2018[is.na(shrub.2018$Count), "Count"] <- 0
 summary(shrub.2018)
 shrub.2018[is.na(shrub.2018$MgmtUnit2),]
@@ -79,15 +82,15 @@ shrub.2007$Year <- 2007
 shrub.2007$Count <- shrub.2007$Count.Alive
 summary(shrub.2007)
 
-shrub.2007 <- merge(shrub.2007, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded", "unit", "MgmtUnit", "MgmtUnit2")], all.x=T, all.y=T)
+shrub.2007 <- merge(shrub.2007, imls.spat[,c("PlotID", "x.nad83", "y.nad83", "x.utm16", "y.utm16", "lon", "lat", "PlotID2", "wooded", "unit", "MgmtUnit", "MgmtUnit2", "MgmtUnit3")], all.x=T, all.y=T)
 shrub.2007[is.na(shrub.2007$Count), "Count"] <- 0
 summary(shrub.2007)
 
 
 unique(shrub.2007[shrub.2007$Native=="Alien","Spp.Name"])
 
-shrub.bind <- rbind(shrub.2007[,c("Year", "PlotID", "MgmtUnit", "MgmtUnit2", "Spp.Name", "Count", "Category")], 
-                    shrub.2018[,c("Year", "PlotID", "MgmtUnit", "MgmtUnit2", "Spp.Name", "Count", "Category")])
+shrub.bind <- rbind(shrub.2007[,c("Year", "PlotID", "MgmtUnit", "MgmtUnit2", "MgmtUnit3", "Spp.Name", "Count", "Category")], 
+                    shrub.2018[,c("Year", "PlotID", "MgmtUnit", "MgmtUnit2", "MgmtUnit3", "Spp.Name", "Count", "Category")])
 
 shrub.bind[shrub.bind$Spp.Name %in% c("NONE", "No shrubs/seedlings"), "Spp.Name"] <- NA
 shrub.bind$Spp.Name <- car::recode(shrub.bind$Spp.Name, "'Viburnumspecies'='Viburnum species'; 
@@ -106,7 +109,7 @@ shrub.bind$PlotID <- as.factor(shrub.bind$PlotID)
 # shrub.bind$MgmtUnit2[is.na(shrub.bind$MgmtUnit2)] <- "Other"
 summary(shrub.bind)
 
-shrub.agg <- aggregate(shrub.bind[,c("Count")], by=shrub.bind[,c("Year", "PlotID", "MgmtUnit", "MgmtUnit2", "Invasive", "Invasive2")], FUN=sum)
+shrub.agg <- aggregate(shrub.bind[,c("Count")], by=shrub.bind[,c("Year", "PlotID", "MgmtUnit", "MgmtUnit2", "MgmtUnit3", "Invasive", "Invasive2")], FUN=sum)
 names(shrub.agg)[which(names(shrub.agg)=="x")] <- c("Count")
 shrub.agg$PlotID <- as.factor(shrub.agg$PlotID)
 shrub.agg$Invasive <- factor(shrub.agg$Invasive, levels=c("Lonicera", "Rhamnus", "Other Invasive", "non-invasive"))
@@ -119,7 +122,7 @@ png(file.path(path.out, "figures", "Shrub_Invasives_Density_Comparison_Plot_Mgmt
 ggplot(data=shrub.agg) +
   ggtitle("Invasive Shrubs") +
   facet_grid(Invasive ~ Year, scales="free") +
-  geom_boxplot(aes(x=MgmtUnit2, y=log(Count), fill=MgmtUnit2)) +
+  geom_boxplot(aes(x=MgmtUnit3, y=log(Count), fill=MgmtUnit2)) +
   theme_bw() +
   theme(legend.position="bottom",
         legend.title=element_blank(),
@@ -131,7 +134,7 @@ dev.off()
 png(file.path(path.out, "figures", "Shrub_Invasives_Density_Comparison_Plot_MgmtUnit2_Year.png"), height=6, width=8, units="in", res=180)
 ggplot(data=shrub.agg) +
   ggtitle("Invasive Shrubs") +
-  facet_grid(Invasive ~ MgmtUnit2, scales="free") +
+  facet_grid(Invasive ~ MgmtUnit3, scales="free") +
   geom_boxplot(aes(x=as.factor(Year), y=log(Count), fill=MgmtUnit2)) +
   theme_bw() +
   theme(legend.position="bottom",
@@ -149,13 +152,13 @@ dev.off()
 # -----------------------------------------------------------
 # Reshaping to directly compare 2007 & 2008
 shrub.agg$Year <- as.factor(shrub.agg$Year)
-shrub.agg2 <- tidyr::spread(shrub.agg[,c("PlotID", "MgmtUnit", "MgmtUnit2", "Invasive", "Invasive2", "Year", "Count")], Year, Count, fill=0)
+shrub.agg2 <- tidyr::spread(shrub.agg[,c("PlotID", "MgmtUnit", "MgmtUnit2", "MgmtUnit3", "Invasive", "Invasive2", "Year", "Count")], Year, Count, fill=0)
 # shrub.agg2[is.na(shrub.agg2)] <- 0
 shrub.agg2$Change <- shrub.agg2$`2018` - shrub.agg2$`2007`
 summary(shrub.agg2)
  
 mgmt.grp.agg <- aggregate(shrub.agg2$Change, 
-                          by=shrub.agg2[,c("MgmtUnit2", "Invasive")], FUN=mean)
+                          by=shrub.agg2[,c("MgmtUnit2", "MgmtUnit3", "Invasive")], FUN=mean)
 names(mgmt.grp.agg)[names(mgmt.grp.agg)=="x"] <- "Change.mean"
 mgmt.grp.agg$Change.sd <- aggregate(shrub.agg2$Change, by=shrub.agg2[,c("MgmtUnit2", "Invasive")], FUN=sd)$x
 
@@ -171,6 +174,23 @@ mgmt.grp.agg[mgmt.grp.agg$Invasive=="Lonicera", "lab.y"] <- 0.16
 mgmt.grp.agg[mgmt.grp.agg$Invasive=="Rhamnus", "lab.y"] <- 0.12
 mgmt.grp.agg[mgmt.grp.agg$Invasive=="Other Invasive", "lab.y"] <- 0.22
 mgmt.grp.agg[mgmt.grp.agg$Invasive=="non-invasive", "lab.y"] <- 0.5
+
+png(file.path(path.out, "figures", "Shrub_Invasives_Change_DensityPlot_MgmtUnit3.png"), height=6, width=8, units="in", res=180)
+ggplot(data=shrub.agg2[,]) +
+  facet_grid(Invasive~MgmtUnit3, scales="free") +
+  # geom_histogram(aes(x=Change, fill=MgmtUnit2)) +
+  geom_density(aes(x=Change, fill=MgmtUnit2)) +
+  geom_vline(xintercept=0, linetype="dashed") +
+  geom_text(data=mgmt.grp.agg, aes(x=lab.x, y=lab.y, label=paste0("mean=",round(Change.mean, 1),"\nSD=",round(Change.sd, 1))),vjust=0.5, hjust=0, size=3) +
+  scale_y_continuous(expand=c(0,0)) +
+  theme_bw() +
+  theme(legend.position="bottom",
+        legend.title=element_blank(),
+        panel.spacing = unit(0, "lines"),
+        # axis.text.x = element_text(angle=-30, hjust=0),
+        # axis.title.x = element_blank(),
+        plot.title = element_text(hjust=0.5, face="bold"))
+dev.off()
 
 png(file.path(path.out, "figures", "Shrub_Invasives_Change_DensityPlot_MgmtUnit2.png"), height=6, width=8, units="in", res=180)
 ggplot(data=shrub.agg2[,]) +
@@ -188,7 +208,6 @@ ggplot(data=shrub.agg2[,]) +
         # axis.title.x = element_blank(),
         plot.title = element_text(hjust=0.5, face="bold"))
 dev.off()
-
 
 change.plot <- aggregate(shrub.agg2$Change, by=list(shrub.agg2[,c("Invasive2")]), FUN=mean)
 names(change.plot)[which(names(change.plot)=="x")] <- "Dens.diff.mean"
